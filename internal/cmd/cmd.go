@@ -68,13 +68,35 @@ func (c *Command) Exec(ctx context.Context, argv []string) error {
 		argv = argv[1:]
 
 		if strings.HasPrefix(arg, "--") {
-			// We are dealing with an argument like "--foo".
+			// We are dealing with an argument like "--foo" or "--foo=bar".
+			var longName string    // the "foo" in "--foo=bar"
+			var inlineValue string // the "bar" in "--foo=bar". may be empty
+			if strings.ContainsRune(arg, '=') {
+				// We are dealing with something like "--foo=bar". Split that
+				// into "foo" and "bar".
+				parts := strings.SplitN(arg, "=", 2)
+				longName = parts[0][2:] // indexing [2:] is to strip out "--"
+				inlineValue = parts[1]  // may include further "=" chars. That's ok
+			} else {
+				// We are dealing with something like "--foo". There is no
+				// inline value.
+				longName = arg[2:]
+			}
 
-			// TODO support non-boolean flags.
 			// TODO support flags that aren't found.
-			flag, _ := c.findLongName(arg[2:])
-			if err := flag.Set(config, ""); err != nil {
-				return err
+			flag, _ := c.findLongName(longName)
+			if flag.TakesValue {
+				// TODO support flags taking a value, but the value isn't
+				// inline.
+				if err := flag.Set(config, inlineValue); err != nil {
+					return err
+				}
+			} else {
+				// The flag does not take a value. We can just set its value
+				// right away.
+				if err := flag.Set(config, ""); err != nil {
+					return err
+				}
 			}
 		} else if strings.HasPrefix(arg, "-") {
 			// We are dealing with an argument like "-f".
