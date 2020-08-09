@@ -68,14 +68,14 @@ func (c *Command) Exec(ctx context.Context, argv []string) error {
 
 		if strings.HasPrefix(arg, "--") {
 			// We are dealing with an argument like "--foo" or "--foo=bar".
-			var longName string    // the "foo" in "--foo=bar"
-			var inlineValue string // the "bar" in "--foo=bar". may be empty
+			var longName string // the "foo" in "--foo=bar"
+			var value string    // the "bar" in "--foo=bar". may be empty
 			if strings.ContainsRune(arg, '=') {
 				// We are dealing with something like "--foo=bar". Split that
 				// into "foo" and "bar".
 				parts := strings.SplitN(arg, "=", 2)
 				longName = parts[0][2:] // indexing [2:] is to strip out "--"
-				inlineValue = parts[1]  // may include further "=" chars. That's ok
+				value = parts[1]        // may include further "=" chars. That's ok
 			} else {
 				// We are dealing with something like "--foo". There is no
 				// inline value.
@@ -85,9 +85,16 @@ func (c *Command) Exec(ctx context.Context, argv []string) error {
 			// TODO support flags that aren't found.
 			flag, _ := c.findLongName(longName)
 			if flag.TakesValue {
-				// TODO support flags taking a value, but the value isn't
-				// inline.
-				if err := flag.Set(config, inlineValue); err != nil {
+				if value == "" {
+					// The flag takes a value, but it was not provided inline.
+					// The next arg in argv is the value.
+					//
+					// TODO handle reaching end-of-argv
+					value = argv[0]
+					argv = argv[1:]
+				}
+
+				if err := flag.Set(config, value); err != nil {
 					return err
 				}
 			} else {
@@ -125,14 +132,23 @@ func (c *Command) Exec(ctx context.Context, argv []string) error {
 					//
 					// TODO support flags taking a value, but the value isn't
 					// inline.
-					var inlineValue string
+					var value string
 					if strings.HasPrefix(arg, "=") {
-						inlineValue = arg[1:]
+						value = arg[1:]
 					} else {
-						inlineValue = arg
+						value = arg
 					}
 
-					if err := flag.Set(config, inlineValue); err != nil {
+					if value == "" {
+						// The flag takes a value, but it was not provided
+						// inline. The next arg in argv is the value.
+						//
+						// TODO handle reaching end-of-argv
+						value = argv[0]
+						argv = argv[1:]
+					}
+
+					if err := flag.Set(config, value); err != nil {
 						return err
 					}
 
