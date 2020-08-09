@@ -58,6 +58,10 @@ func TestExec(t *testing.T) {
 				Out: args{String: "foo"},
 			},
 			{
+				In:  []string{"-sb"},
+				Out: args{String: "b"},
+			},
+			{
 				In:  []string{"--string", "foo"},
 				Out: args{String: "foo"},
 			},
@@ -106,13 +110,13 @@ func TestExec(t *testing.T) {
 		for _, tt := range testCases {
 			t.Run(fmt.Sprint(tt.In), func(t *testing.T) {
 				c, err := cmd.FromFunc(func(ctx context.Context, args args) error {
-					assert.Equal(t, ctx, context.Background())
-					assert.Equal(t, args, tt.Out)
+					assert.Equal(t, context.Background(), ctx)
+					assert.Equal(t, tt.Out, args)
 					return nil
 				})
 
 				assert.NoError(t, err)
-				assert.Equal(t, c.Exec(context.Background(), tt.In), tt.Err)
+				assert.Equal(t, tt.Err, c.Exec(context.Background(), tt.In))
 			})
 		}
 	})
@@ -132,6 +136,6 @@ func TestExec(t *testing.T) {
 		assert.NoError(t, err)
 
 		err = c.Exec(context.Background(), []string{"--foo=bar"})
-		assert.Equal(t, err, errF)
+		assert.Equal(t, errF, err)
 	})
 }

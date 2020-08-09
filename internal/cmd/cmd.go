@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 	"strings"
 	"time"
@@ -110,14 +109,44 @@ func (c *Command) Exec(ctx context.Context, argv []string) error {
 				// TODO support non-boolean flags.
 				// TODO support flags that aren't found.
 				flag, _ := c.findShortName(char)
-				if err := flag.Set(config, ""); err != nil {
-					return err
+
+				if flag.TakesValue {
+					// The flag takes a value. There are three cases we might be
+					// interested in:
+					//
+					// If the arg is like "-fbar", then we want to extract out
+					// "bar" as an inline value to "-f".
+					//
+					// If the arg is like "-f=bar", then we want to extract out
+					// "bar" as an inline value to "-f".
+					//
+					// If the arg is like "-f", then there is no inline value to
+					// "-f". The next arg is its value.
+					//
+					// TODO support flags taking a value, but the value isn't
+					// inline.
+					var inlineValue string
+					if strings.HasPrefix(arg, "=") {
+						inlineValue = arg[1:]
+					} else {
+						inlineValue = arg
+					}
+
+					if err := flag.Set(config, inlineValue); err != nil {
+						return err
+					}
+
+					// empty these out so that the loop over arg terminates
+					arg = ""
+				} else {
+					// The flag doesn't take a value. Just set this single flag,
+					// and continue working on the argument.
+					if err := flag.Set(config, ""); err != nil {
+						return err
+					}
 				}
 			}
-
 		}
-
-		fmt.Println(arg, config)
 	}
 
 	// The config is now constructed. Let's call the underlying function with
