@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"strings"
 	"time"
@@ -15,7 +16,7 @@ type Command struct {
 
 type Flag struct {
 	LongNames  []string
-	ShortNames []rune
+	ShortNames []string
 	ShortHelp  string
 	Index      []int
 	TakesValue bool
@@ -38,7 +39,7 @@ func FromFunc(fn interface{}) (Command, error) {
 
 		flag := Flag{
 			LongNames:  []string{},
-			ShortNames: []rune{},
+			ShortNames: []string{},
 			ShortHelp:  field.Tag.Get("usage"),
 			Index:      []int{i}, // TODO nested fields
 			TakesValue: field.Type != typeBool,
@@ -49,7 +50,7 @@ func FromFunc(fn interface{}) (Command, error) {
 				flag.LongNames = append(flag.LongNames, part[2:])
 			} else if strings.HasPrefix(part, "-") {
 				// TODO assert there's exactly one char after the dash
-				flag.ShortNames = append(flag.ShortNames, rune(part[1]))
+				flag.ShortNames = append(flag.ShortNames, part[1:])
 			}
 		}
 
@@ -62,124 +63,47 @@ func FromFunc(fn interface{}) (Command, error) {
 func (c *Command) Exec(ctx context.Context, argv []string) error {
 	config := reflect.New(c.Config).Elem()
 
-	var parsingFlag *Flag
+	for len(argv) > 0 {
+		arg := argv[0]
+		argv = argv[1:]
 
-	for _, arg := range argv {
-		if parsingFlag == nil {
-			// We should expect to parse a new flag
-			equalParts := strings.SplitN(arg, "=", 2)
-			flagIdentifier := equalParts[0]
+		if strings.HasPrefix(arg, "--") {
+			// We are dealing with an argument like "--foo".
 
-			if strings.HasPrefix(flagIdentifier, "--") {
-				var indicatedFlag Flag
-
-				// This is a long flag name that's being indicated.
-				flagName := flagIdentifier[2:]
-				for _, flag := range c.Flags {
-					for _, name := range flag.LongNames {
-						if flagName == name {
-							indicatedFlag = flag
-						}
-					}
-				}
-
-				if indicatedFlag.TakesValue {
-					// The flag in question takes a value. Either this arg has the
-					// value, or the next one does.
-					if len(equalParts) == 2 {
-						// We were given something like --foo=bar. Immediately set
-						// the config's value from the value in arg.
-						flagValue := equalParts[1]
-						field := config.FieldByIndex(indicatedFlag.Index)
-
-						switch v := field.Addr().Interface().(type) {
-						case *string:
-							*v = flagValue
-						case *time.Duration:
-							dur, err := time.ParseDuration(flagValue)
-							if err != nil {
-								return err
-							}
-
-							*v = dur
-						}
-					} else if len(equalParts) == 1 {
-						// We were given something like --foo. The next arg will
-						// have the flag's value.
-						parsingFlag = &indicatedFlag
-					}
-				} else {
-					// The flag does not take a value. That can only happen if the
-					// relevant config field is of type bool. Because the flag is
-					// present, we set that config field to true.
-					config.FieldByIndex(indicatedFlag.Index).SetBool(true)
-				}
-			} else if strings.HasPrefix(flagIdentifier, "-") {
-				// When a an arg starts with a single dash, then multiple flags
-				// may be indicated. Each character in the arg is a flag, until
-				// the flag is one that takes a value. Once we reach a flag that
-				// takes a value, if there are remaining characters in the arg,
-				// then those characters are the flag's value. Otherwise, the
-				// next arg will have the value.
-				//
-				// In other words, if -a and -b don't take values but -c does,
-				// then "-abcdef" is equivalent to "-a -b -c def".
-
-			iterChars:
-				for i := 1; i < len(flagIdentifier); i++ {
-					flagName := rune(flagIdentifier[i])
-					for _, flag := range c.Flags {
-						for _, shortName := range flag.ShortNames {
-							if shortName == flagName {
-								if flag.TakesValue {
-									if i == len(flagIdentifier)-1 {
-										parsingFlag = &flag
-										break iterChars
-									}
-
-									field := config.FieldByIndex(flag.Index)
-									flagValue := flagIdentifier[i+1:]
-
-									switch v := field.Addr().Interface().(type) {
-									case *string:
-										*v = flagValue
-									case *time.Duration:
-										dur, err := time.ParseDuration(flagValue)
-										if err != nil {
-											return err
-										}
-
-										*v = dur
-									}
-								} else {
-									config.FieldByIndex(flag.Index).SetBool(true)
-								}
-							}
-						}
-					}
-				}
+			// TODO support non-boolean flags.
+			// TODO support flags that aren't found.
+			flag, _ := c.findLongName(arg[2:])
+			if err := flag.Set(config, ""); err != nil {
+				return err
 			}
-		} else {
-			// We should just expect a value.
-			field := config.FieldByIndex(parsingFlag.Index)
+		} else if strings.HasPrefix(arg, "-") {
+			// We are dealing with an argument like "-f".
 
-			switch v := field.Addr().Interface().(type) {
-			case *string:
-				*v = arg
-			case *time.Duration:
-				dur, err := time.ParseDuration(arg)
-				if err != nil {
+			arg = arg[1:] // strip off the leading "-"
+
+			for len(arg) > 0 {
+				char := arg[0:1]
+				arg = arg[1:]
+
+				// TODO support non-boolean flags.
+				// TODO support flags that aren't found.
+				flag, _ := c.findShortName(char)
+				if err := flag.Set(config, ""); err != nil {
 					return err
 				}
-
-				*v = dur
 			}
 
-			parsingFlag = nil
 		}
+
+		fmt.Println(arg, config)
 	}
 
-	res := c.Func.Call([]reflect.Value{reflect.ValueOf(ctx), config})
+	// The config is now constructed. Let's call the underlying function with
+	// the constructed config, and return any errors from that function.
+	res := c.Func.Call([]reflect.Value{
+		reflect.ValueOf(ctx),
+		config,
+	})
 
 	resErr := res[0].Interface()
 	if resErr == nil {
@@ -187,4 +111,55 @@ func (c *Command) Exec(ctx context.Context, argv []string) error {
 	}
 
 	return resErr.(error)
+}
+
+func (c *Command) findLongName(s string) (Flag, bool) {
+	for _, flag := range c.Flags {
+		for _, longName := range flag.LongNames {
+			if longName == s {
+				return flag, true
+			}
+		}
+	}
+
+	return Flag{}, false
+}
+
+func (c *Command) findShortName(s string) (Flag, bool) {
+	for _, flag := range c.Flags {
+		for _, shortName := range flag.ShortNames {
+			if shortName == s {
+				return flag, true
+			}
+		}
+	}
+
+	return Flag{}, false
+}
+
+// Set identifies the field that f points to, and then parses s and sets the
+// field to the parsed value within s.
+//
+// If f does not take a value, then s is ignored.
+func (f Flag) Set(config reflect.Value, s string) error {
+	field := config.FieldByIndex(f.Index)
+
+	if !f.TakesValue {
+		field.SetBool(true)
+		return nil
+	}
+
+	switch v := field.Addr().Interface().(type) {
+	case *string:
+		*v = s
+	case *time.Duration:
+		dur, err := time.ParseDuration(s)
+		if err != nil {
+			return err
+		}
+
+		*v = dur
+	}
+
+	return nil
 }

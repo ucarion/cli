@@ -2,6 +2,7 @@ package cmd_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -116,30 +117,21 @@ func TestExec(t *testing.T) {
 		}
 	})
 
-	// t.Run("basic", func(t *testing.T) {
-	// 	type args struct {
-	// 		Name string        `cli:"--name"`
-	// 		Wait time.Duration `cli:"--wait"`
-	// 	}
+	t.Run("basic", func(t *testing.T) {
+		type args struct {
+			Foo string `cli:"--foo"`
+		}
 
-	// 	errF := errors.New("error from f")
-	// 	f := func(ctx context.Context, args args) error {
-	// 		assert.Equal(t, args.Name, "foo")
-	// 		assert.Equal(t, args.Wait, 2*time.Second)
+		errF := errors.New("error from f")
+		f := func(ctx context.Context, args args) error {
+			assert.Equal(t, args.Foo, "bar")
+			return errF
+		}
 
-	// 		return errF
-	// 	}
+		c, err := cmd.FromFunc(f)
+		assert.NoError(t, err)
 
-	// 	c, err := cmd.FromFunc(f)
-	// 	assert.NoError(t, err)
-
-	// 	err = c.Exec(context.Background(), []string{"--name=foo", "--wait=2s"})
-	// 	assert.Equal(t, err, errF)
-
-	// 	err = c.Exec(context.Background(), []string{"--name", "foo", "--wait", "2s"})
-	// 	assert.Equal(t, err, errF)
-
-	// 	err = c.Exec(context.Background(), []string{"--name=foo", "--wait", "2s"})
-	// 	assert.Equal(t, err, errF)
-	// })
+		err = c.Exec(context.Background(), []string{"--foo=bar"})
+		assert.Equal(t, err, errF)
+	})
 }
