@@ -20,6 +20,8 @@ func TestExec(t *testing.T) {
 			Duration time.Duration `cli:"--duration,-d"`
 			Pos1     string        `cli:"pos1"`
 			Pos2     time.Duration `cli:"pos2"`
+			Variadic []string      `cli:"...variadic"`
+			Trailing []string      `cli:"-- trailing..."`
 		}
 
 		testCases := []struct {
@@ -106,6 +108,14 @@ func TestExec(t *testing.T) {
 			{
 				In:  []string{"asdf", "1m"},
 				Out: args{Pos1: "asdf", Pos2: time.Minute},
+			},
+			{
+				In:  []string{"asdf", "1m", "xxx", "yyy"},
+				Out: args{Pos1: "asdf", Pos2: time.Minute, Variadic: []string{"xxx", "yyy"}},
+			},
+			{
+				In:  []string{"asdf", "1m", "xxx", "yyy", "--", "zzz", "www"},
+				Out: args{Pos1: "asdf", Pos2: time.Minute, Variadic: []string{"xxx", "yyy"}, Trailing: []string{"zzz", "www"}},
 			},
 			{
 				In:  []string{"--string", "foo", "--bool", "--duration=1m"},

@@ -8,10 +8,12 @@ import (
 )
 
 type Command struct {
-	Flags   []Flag
-	PosArgs []PosArg
-	Config  reflect.Type
-	Func    reflect.Value
+	Flags    []Flag
+	PosArgs  []PosArg
+	Variadic *PosArg
+	Trailing *PosArg
+	Config   reflect.Type
+	Func     reflect.Value
 }
 
 type Flag struct {
@@ -35,6 +37,7 @@ func FromFunc(fn interface{}) (Command, error) {
 
 	flags := []Flag{}
 	posArgs := []PosArg{}
+	var variadic, trailing *PosArg
 
 	for i := 0; i < config.NumField(); i++ {
 		field := config.Field(i)
@@ -44,8 +47,15 @@ func FromFunc(fn interface{}) (Command, error) {
 			continue
 		}
 
-		// Are we dealing with a flag or a positional argument?
-		if strings.HasPrefix(cli, "-") {
+		// What sort of flag are we dealing with?
+		if strings.HasPrefix(cli, "-- ") {
+			// We are dealing with the trailing arguments
+			//
+			// We want to strip out the leading "-- " and the trailing "..."
+			//
+			// TODO ensure cli here ends with "..."
+			trailing = &PosArg{Name: cli[3 : len(cli)-3], Index: []int{i}} // TODO nested fields
+		} else if strings.HasPrefix(cli, "-") {
 			// We are dealing with a flag.
 			flag := Flag{
 				LongNames:  []string{},
@@ -65,6 +75,9 @@ func FromFunc(fn interface{}) (Command, error) {
 			}
 
 			flags = append(flags, flag)
+		} else if strings.HasPrefix(cli, "...") {
+			// We are dealing with the variadic positional arguments.
+			variadic = &PosArg{Name: cli[3:], Index: []int{i}} // TODO nested fields
 		} else {
 			// We are dealing with a positional argument.
 			posArgs = append(posArgs, PosArg{
@@ -74,7 +87,14 @@ func FromFunc(fn interface{}) (Command, error) {
 		}
 	}
 
-	return Command{Flags: flags, PosArgs: posArgs, Config: config, Func: v}, nil
+	return Command{
+		Flags:    flags,
+		PosArgs:  posArgs,
+		Variadic: variadic,
+		Trailing: trailing,
+		Config:   config,
+		Func:     v,
+	}, nil
 }
 
 func (c *Command) Exec(ctx context.Context, argv []string) error {
@@ -86,7 +106,17 @@ func (c *Command) Exec(ctx context.Context, argv []string) error {
 		arg := argv[0]
 		argv = argv[1:]
 
-		if strings.HasPrefix(arg, "--") {
+		if arg == "--" {
+			// TODO handle there not being trailing args
+
+			// Take each of the remaining args, and put them into Trailing.
+			for len(argv) > 0 {
+				arg := argv[0]
+				argv = argv[1:]
+
+				c.Trailing.Set(config, arg)
+			}
+		} else if strings.HasPrefix(arg, "--") {
 			// We are dealing with an argument like "--foo" or "--foo=bar".
 			var longName string // the "foo" in "--foo=bar"
 			var value string    // the "bar" in "--foo=bar". may be empty
@@ -185,8 +215,13 @@ func (c *Command) Exec(ctx context.Context, argv []string) error {
 		} else {
 			// The string does not start with a dash. We are therefore dealing
 			// with a positional argument.
-			c.PosArgs[posArgIndex].Set(config, arg)
-			posArgIndex++
+
+			if posArgIndex == len(c.PosArgs) {
+				c.Variadic.Set(config, arg)
+			} else {
+				c.PosArgs[posArgIndex].Set(config, arg)
+				posArgIndex++
+			}
 		}
 	}
 
@@ -242,6 +277,8 @@ func (f Flag) Set(config reflect.Value, s string) error {
 	}
 
 	switch v := field.Addr().Interface().(type) {
+	case *[]string:
+		*v = append(*v, s)
 	case *string:
 		*v = s
 	case *time.Duration:
@@ -261,6 +298,8 @@ func (p PosArg) Set(config reflect.Value, s string) error {
 	field := config.FieldByIndex(p.Index)
 
 	switch v := field.Addr().Interface().(type) {
+	case *[]string:
+		*v = append(*v, s)
 	case *string:
 		*v = s
 	case *time.Duration:
