@@ -8,9 +8,10 @@ import (
 )
 
 type Command struct {
-	Flags  []Flag
-	Config reflect.Type
-	Func   reflect.Value
+	Flags   []Flag
+	PosArgs []PosArg
+	Config  reflect.Type
+	Func    reflect.Value
 }
 
 type Flag struct {
@@ -21,6 +22,11 @@ type Flag struct {
 	TakesValue bool
 }
 
+type PosArg struct {
+	Name  string
+	Index []int
+}
+
 var typeBool = reflect.TypeOf(true)
 
 func FromFunc(fn interface{}) (Command, error) {
@@ -28,6 +34,8 @@ func FromFunc(fn interface{}) (Command, error) {
 	config := v.Type().In(1)
 
 	flags := []Flag{}
+	posArgs := []PosArg{}
+
 	for i := 0; i < config.NumField(); i++ {
 		field := config.Field(i)
 
@@ -36,31 +44,43 @@ func FromFunc(fn interface{}) (Command, error) {
 			continue
 		}
 
-		flag := Flag{
-			LongNames:  []string{},
-			ShortNames: []string{},
-			ShortHelp:  field.Tag.Get("usage"),
-			Index:      []int{i}, // TODO nested fields
-			TakesValue: field.Type != typeBool,
-		}
-
-		for _, part := range strings.Split(cli, ",") {
-			if strings.HasPrefix(part, "--") {
-				flag.LongNames = append(flag.LongNames, part[2:])
-			} else if strings.HasPrefix(part, "-") {
-				// TODO assert there's exactly one char after the dash
-				flag.ShortNames = append(flag.ShortNames, part[1:])
+		// Are we dealing with a flag or a positional argument?
+		if strings.HasPrefix(cli, "-") {
+			// We are dealing with a flag.
+			flag := Flag{
+				LongNames:  []string{},
+				ShortNames: []string{},
+				ShortHelp:  field.Tag.Get("usage"),
+				Index:      []int{i}, // TODO nested fields
+				TakesValue: field.Type != typeBool,
 			}
-		}
 
-		flags = append(flags, flag)
+			for _, part := range strings.Split(cli, ",") {
+				if strings.HasPrefix(part, "--") {
+					flag.LongNames = append(flag.LongNames, part[2:])
+				} else if strings.HasPrefix(part, "-") {
+					// TODO assert there's exactly one char after the dash
+					flag.ShortNames = append(flag.ShortNames, part[1:])
+				}
+			}
+
+			flags = append(flags, flag)
+		} else {
+			// We are dealing with a positional argument.
+			posArgs = append(posArgs, PosArg{
+				Name:  cli,
+				Index: []int{i}, // TODO nested fields
+			})
+		}
 	}
 
-	return Command{Flags: flags, Config: config, Func: v}, nil
+	return Command{Flags: flags, PosArgs: posArgs, Config: config, Func: v}, nil
 }
 
 func (c *Command) Exec(ctx context.Context, argv []string) error {
 	config := reflect.New(c.Config).Elem()
+
+	posArgIndex := 0 // index of the next positional argument to set
 
 	for len(argv) > 0 {
 		arg := argv[0]
@@ -162,6 +182,11 @@ func (c *Command) Exec(ctx context.Context, argv []string) error {
 					}
 				}
 			}
+		} else {
+			// The string does not start with a dash. We are therefore dealing
+			// with a positional argument.
+			c.PosArgs[posArgIndex].Set(config, arg)
+			posArgIndex++
 		}
 	}
 
@@ -215,6 +240,25 @@ func (f Flag) Set(config reflect.Value, s string) error {
 		field.SetBool(true)
 		return nil
 	}
+
+	switch v := field.Addr().Interface().(type) {
+	case *string:
+		*v = s
+	case *time.Duration:
+		dur, err := time.ParseDuration(s)
+		if err != nil {
+			return err
+		}
+
+		*v = dur
+	}
+
+	return nil
+}
+
+func (p PosArg) Set(config reflect.Value, s string) error {
+	// TODO duplicative of Flag.Set
+	field := config.FieldByIndex(p.Index)
 
 	switch v := field.Addr().Interface().(type) {
 	case *string:

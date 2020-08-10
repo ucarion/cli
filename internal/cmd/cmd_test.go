@@ -18,6 +18,8 @@ func TestExec(t *testing.T) {
 			Bool2    bool          `cli:"-c"`
 			String   string        `cli:"--string,--str,-s"`
 			Duration time.Duration `cli:"--duration,-d"`
+			Pos1     string        `cli:"pos1"`
+			Pos2     time.Duration `cli:"pos2"`
 		}
 
 		testCases := []struct {
@@ -98,12 +100,24 @@ func TestExec(t *testing.T) {
 				Out: args{Bool: true, Bool2: true, Duration: time.Minute},
 			},
 			{
+				In:  []string{"asdf"},
+				Out: args{Pos1: "asdf"},
+			},
+			{
+				In:  []string{"asdf", "1m"},
+				Out: args{Pos1: "asdf", Pos2: time.Minute},
+			},
+			{
 				In:  []string{"--string", "foo", "--bool", "--duration=1m"},
 				Out: args{Bool: true, String: "foo", Duration: time.Minute},
 			},
 			{
 				In:  []string{"-s=foo", "-b", "-d", "1m"},
 				Out: args{Bool: true, String: "foo", Duration: time.Minute},
+			},
+			{
+				In:  []string{"-bs", "foo", "asdf", "-c", "1m"},
+				Out: args{Bool: true, Bool2: true, String: "foo", Pos1: "asdf", Pos2: time.Minute},
 			},
 		}
 
