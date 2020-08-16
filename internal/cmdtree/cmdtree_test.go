@@ -65,6 +65,7 @@ func TestNew(t *testing.T) {
 	t.Run("flags and positional args", func(t *testing.T) {
 		type embed3 struct {
 			J string `cli:"-j"`
+			K string `cli:"k"`
 		}
 
 		type embed2 struct {
@@ -107,7 +108,14 @@ func TestNew(t *testing.T) {
 				cmdtree.Flag{Field: []int{9, 0}, ShortNames: []string{"i"}, LongNames: []string{}},
 				cmdtree.Flag{Field: []int{9, 1, 0}, ShortNames: []string{"j"}, LongNames: []string{}},
 			},
-			Children: []cmdtree.ChildCommand{},
+			PosArgs: []cmdtree.PosArg{
+				cmdtree.PosArg{Field: []int{1}, Name: "a"},
+				cmdtree.PosArg{Field: []int{6}, Name: "echo"},
+				cmdtree.PosArg{Field: []int{7}, Name: "foxtrot"},
+				cmdtree.PosArg{Field: []int{9, 1, 1}, Name: "k"},
+			},
+			TrailingArgs: cmdtree.PosArg{Field: []int{8}, Name: "golf"},
+			Children:     []cmdtree.ChildCommand{},
 		}, stripFuncs(tree))
 
 	})

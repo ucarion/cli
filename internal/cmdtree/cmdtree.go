@@ -9,12 +9,13 @@ const TagSubCommand = "subcmd"
 const TagCLI = "cli"
 
 type CommandTree struct {
-	Name     string
-	Func     reflect.Value
-	Config   reflect.Type
-	Flags    []Flag
-	PosArgs  []PosArg
-	Children []ChildCommand
+	Name         string
+	Func         reflect.Value
+	Config       reflect.Type
+	Flags        []Flag
+	PosArgs      []PosArg
+	TrailingArgs PosArg
+	Children     []ChildCommand
 }
 
 type Flag struct {
@@ -139,12 +140,8 @@ func newConfigFromType(t reflect.Type) config {
 			c.Name = name
 		}
 
-		// Special-case for manually naming a command: a field named "_" whose
-		// type is an empty struct, and which has a "cli" tag".
-		if f.Name == "_" && f.Type == reflect.StructOf(nil) {
-			if name, ok := f.Tag.Lookup(TagCLI); ok {
-				c.Name = name
-			}
+		if name, ok := getFieldOverrideName(f); ok {
+			c.Name = name
 		}
 	}
 
@@ -158,37 +155,55 @@ func addParamsFromType(c *config, indexPrefix []int, t reflect.Type) {
 		f := t.Field(i)
 		index := append(indexPrefix, i)
 
+		if _, ok := getFieldOverrideName(f); ok {
+			continue
+		}
+
 		if f.Anonymous {
 			addParamsFromType(c, index, f.Type)
 			continue
 		}
 
-		name, ok := f.Tag.Lookup(TagCLI)
+		cli, ok := f.Tag.Lookup(TagCLI)
 		if !ok {
 			continue
 		}
 
-		longNames := []string{}
-		shortNames := []string{}
+		switch {
+		case strings.HasPrefix(cli, "..."):
+			c.TrailingArgs = PosArg{Field: index, Name: cli[3:]}
+		case strings.HasPrefix(cli, "-"):
+			longNames := []string{}
+			shortNames := []string{}
 
-		parts := strings.Split(name, ",")
-		for _, part := range parts {
-			switch {
-			case strings.HasPrefix(part, "--"):
-				longNames = append(longNames, part[2:])
-			case strings.HasPrefix(part, "-"):
-				shortNames = append(shortNames, part[1:])
+			parts := strings.Split(cli, ",")
+			for _, part := range parts {
+				switch {
+				case strings.HasPrefix(part, "--"):
+					longNames = append(longNames, part[2:])
+				case strings.HasPrefix(part, "-"):
+					shortNames = append(shortNames, part[1:])
+				}
 			}
-		}
 
-		if len(longNames) > 0 || len(shortNames) > 0 {
 			c.Flags = append(c.Flags, Flag{
 				Field:      index,
 				LongNames:  longNames,
 				ShortNames: shortNames,
 			})
+
+		default:
+			c.PosArgs = append(c.PosArgs, PosArg{Field: index, Name: cli})
 		}
 	}
+}
+
+func getFieldOverrideName(f reflect.StructField) (string, bool) {
+	if f.Name == "_" && f.Type == reflect.StructOf(nil) {
+		return f.Tag.Lookup(TagCLI)
+	}
+
+	return "", false
 }
 
 func newCmd(children map[reflect.Type][]config, root config) CommandTree {
