@@ -5,6 +5,7 @@ import (
 )
 
 const TagSubCommand = "subcmd"
+const TagCLI = "cli"
 
 type CommandTree struct {
 	Name     string
@@ -136,6 +137,14 @@ func newConfigFromType(t reflect.Type) config {
 			c.ParentConfigField = i
 			c.Name = name
 			return c
+		}
+
+		// Special-case for manually naming a command: a field named "_" whose
+		// type is an empty struct, and which has a "cli" tag".
+		if f.Name == "_" && f.Type == reflect.StructOf(nil) {
+			if name, ok := f.Tag.Lookup(TagCLI); ok {
+				c.Name = name
+			}
 		}
 	}
 

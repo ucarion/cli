@@ -43,6 +43,25 @@ func TestNew(t *testing.T) {
 		assert.Equal(t, res[0].Interface(), callErr)
 	})
 
+	t.Run("named root", func(t *testing.T) {
+		type root struct {
+			_ struct{} `cli:"root"`
+		}
+
+		tree, err := cmdtree.New([]interface{}{
+			func(_ context.Context, _ root) error {
+				return nil
+			},
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, cmdtree.CommandTree{
+			Name:     "root",
+			Config:   reflect.TypeOf(root{}),
+			Children: []cmdtree.ChildCommand{},
+		}, stripFuncs(tree))
+	})
+
 	t.Run("two subcommands", func(t *testing.T) {
 		type root struct{}
 
