@@ -28,7 +28,7 @@ type PosArg struct {
 
 type ChildCommand struct {
 	ParentConfigField int
-	Child             CommandTree
+	CommandTree
 }
 
 func New(funcs []interface{}) (CommandTree, error) {
@@ -67,16 +67,16 @@ func New(funcs []interface{}) (CommandTree, error) {
 				continue
 			}
 
-			// See if there's an existing config whose Type is our ParentType.
+			// See if there's an existing config whose type is our ParentType.
 			ok := false
 			for _, c := range configs {
-				if c.Type == config.ParentType {
+				if c.CommandTree.Config == config.ParentType {
 					ok = true
 				}
 			}
 
-			// Our ParentType already is not accounted for. Add it to the set of
-			// types to explore.
+			// Our ParentType is not accounted for. Add it to the set of types
+			// to explore.
 			if !ok {
 				typesToAdd[config.ParentType] = struct{}{}
 			}
@@ -108,45 +108,50 @@ func New(funcs []interface{}) (CommandTree, error) {
 }
 
 type config struct {
-	Func        reflect.Value
-	Type        reflect.Type
-	ParentType  reflect.Type
-	ParentField int
+	ParentType reflect.Type
+	ChildCommand
 }
 
 func newConfigFromFunc(fn reflect.Value) config {
 	c := newConfigFromType(fn.Type().In(1))
-	c.Func = fn
+	c.CommandTree.Func = fn
 	return c
 }
 
 func newConfigFromType(t reflect.Type) config {
+	c := config{
+		ChildCommand: ChildCommand{
+			CommandTree: CommandTree{
+				Config: t,
+			},
+		},
+	}
+
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
 
-		if _, ok := f.Tag.Lookup(TagSubCommand); ok {
-			return config{Type: t, ParentType: f.Type, ParentField: i}
+		// TODO assert only one use of the tag in the struct
+		if name, ok := f.Tag.Lookup(TagSubCommand); ok {
+			c.ParentType = f.Type
+			c.ParentConfigField = i
+			c.Name = name
+			return c
 		}
 	}
 
-	return config{Type: t}
+	return c
 }
 
 func newCmd(children map[reflect.Type][]config, root config) CommandTree {
-	return CommandTree{
-		Func:     root.Func,
-		Config:   root.Type,
-		Children: newChildCmds(children, root.Type),
-	}
+	root.Children = newChildCmds(children, root.CommandTree.Config)
+	return root.CommandTree
 }
 
 func newChildCmds(children map[reflect.Type][]config, root reflect.Type) []ChildCommand {
 	out := []ChildCommand{}
 	for _, c := range children[root] {
-		out = append(out, ChildCommand{
-			ParentConfigField: c.ParentField,
-			Child:             newCmd(children, c),
-		})
+		c.CommandTree = newCmd(children, c)
+		out = append(out, c.ChildCommand)
 	}
 
 	return out

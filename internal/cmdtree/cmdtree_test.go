@@ -55,7 +55,7 @@ func TestNew(t *testing.T) {
 		type bar struct {
 			XXX  string
 			YYY  string
-			Root root `subcmd:"foo"`
+			Root root `subcmd:"bar"`
 		}
 
 		tree, err := cmdtree.New([]interface{}{
@@ -73,14 +73,16 @@ func TestNew(t *testing.T) {
 			Children: []cmdtree.ChildCommand{
 				cmdtree.ChildCommand{
 					ParentConfigField: 0,
-					Child: cmdtree.CommandTree{
+					CommandTree: cmdtree.CommandTree{
+						Name:     "foo",
 						Config:   reflect.TypeOf(foo{}),
 						Children: []cmdtree.ChildCommand{},
 					},
 				},
 				cmdtree.ChildCommand{
 					ParentConfigField: 2,
-					Child: cmdtree.CommandTree{
+					CommandTree: cmdtree.CommandTree{
+						Name:     "bar",
 						Config:   reflect.TypeOf(bar{}),
 						Children: []cmdtree.ChildCommand{},
 					},
@@ -101,7 +103,7 @@ func TestNew(t *testing.T) {
 		type bar struct {
 			XXX string
 			YYY string
-			Foo foo `subcmd:"foo"`
+			Foo foo `subcmd:"bar"`
 		}
 
 		tree, err := cmdtree.New([]interface{}{
@@ -116,12 +118,14 @@ func TestNew(t *testing.T) {
 			Children: []cmdtree.ChildCommand{
 				cmdtree.ChildCommand{
 					ParentConfigField: 0,
-					Child: cmdtree.CommandTree{
+					CommandTree: cmdtree.CommandTree{
+						Name:   "foo",
 						Config: reflect.TypeOf(foo{}),
 						Children: []cmdtree.ChildCommand{
 							cmdtree.ChildCommand{
 								ParentConfigField: 2,
-								Child: cmdtree.CommandTree{
+								CommandTree: cmdtree.CommandTree{
+									Name:     "bar",
 									Config:   reflect.TypeOf(bar{}),
 									Children: []cmdtree.ChildCommand{},
 								},
@@ -145,7 +149,7 @@ func TestNew(t *testing.T) {
 		type bar struct {
 			XXX string
 			YYY string
-			Foo foo `subcmd:"foo"`
+			Foo foo `subcmd:"bar"`
 		}
 
 		tree, err := cmdtree.New([]interface{}{
@@ -163,12 +167,14 @@ func TestNew(t *testing.T) {
 			Children: []cmdtree.ChildCommand{
 				cmdtree.ChildCommand{
 					ParentConfigField: 0,
-					Child: cmdtree.CommandTree{
+					CommandTree: cmdtree.CommandTree{
+						Name:   "foo",
 						Config: reflect.TypeOf(foo{}),
 						Children: []cmdtree.ChildCommand{
 							cmdtree.ChildCommand{
 								ParentConfigField: 2,
-								Child: cmdtree.CommandTree{
+								CommandTree: cmdtree.CommandTree{
+									Name:     "bar",
 									Config:   reflect.TypeOf(bar{}),
 									Children: []cmdtree.ChildCommand{},
 								},
@@ -246,32 +252,32 @@ func TestNew(t *testing.T) {
 			Config: reflect.TypeOf(root{}),
 			Children: []cmdtree.ChildCommand{
 				cmdtree.ChildCommand{
-					Child: cmdtree.CommandTree{
-						// a
+					CommandTree: cmdtree.CommandTree{
+						Name:     "a",
 						Config:   reflect.TypeOf(a{}),
 						Children: []cmdtree.ChildCommand{},
 					},
 				},
 				cmdtree.ChildCommand{
-					Child: cmdtree.CommandTree{
-						// b
+					CommandTree: cmdtree.CommandTree{
+						Name:   "b",
 						Config: reflect.TypeOf(b{}),
 						Children: []cmdtree.ChildCommand{
 							cmdtree.ChildCommand{
-								Child: cmdtree.CommandTree{
-									// c
+								CommandTree: cmdtree.CommandTree{
+									Name:     "c",
 									Config:   reflect.TypeOf(c{}),
 									Children: []cmdtree.ChildCommand{},
 								},
 							},
 							cmdtree.ChildCommand{
-								Child: cmdtree.CommandTree{
-									// e
+								CommandTree: cmdtree.CommandTree{
+									Name:   "e",
 									Config: reflect.TypeOf(e{}),
 									Children: []cmdtree.ChildCommand{
 										cmdtree.ChildCommand{
-											Child: cmdtree.CommandTree{
-												// f
+											CommandTree: cmdtree.CommandTree{
+												Name:     "f",
 												Config:   reflect.TypeOf(f{}),
 												Children: []cmdtree.ChildCommand{},
 											},
@@ -283,25 +289,25 @@ func TestNew(t *testing.T) {
 					},
 				},
 				cmdtree.ChildCommand{
-					Child: cmdtree.CommandTree{
-						// g
+					CommandTree: cmdtree.CommandTree{
+						Name:   "g",
 						Config: reflect.TypeOf(g{}),
 						Children: []cmdtree.ChildCommand{
 							cmdtree.ChildCommand{
-								Child: cmdtree.CommandTree{
-									// h
+								CommandTree: cmdtree.CommandTree{
+									Name:     "h",
 									Config:   reflect.TypeOf(h{}),
 									Children: []cmdtree.ChildCommand{},
 								},
 							},
 							cmdtree.ChildCommand{
-								Child: cmdtree.CommandTree{
-									// i
+								CommandTree: cmdtree.CommandTree{
+									Name:   "i",
 									Config: reflect.TypeOf(i{}),
 									Children: []cmdtree.ChildCommand{
 										cmdtree.ChildCommand{
-											Child: cmdtree.CommandTree{
-												// j
+											CommandTree: cmdtree.CommandTree{
+												Name:     "j",
 												Config:   reflect.TypeOf(j{}),
 												Children: []cmdtree.ChildCommand{},
 											},
@@ -320,7 +326,7 @@ func TestNew(t *testing.T) {
 func stripFuncs(tree cmdtree.CommandTree) cmdtree.CommandTree {
 	children := []cmdtree.ChildCommand{}
 	for _, c := range tree.Children {
-		c.Child = stripFuncs(c.Child)
+		c.CommandTree = stripFuncs(c.CommandTree)
 		children = append(children, c)
 	}
 
