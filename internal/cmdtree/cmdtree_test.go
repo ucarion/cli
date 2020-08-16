@@ -62,6 +62,56 @@ func TestNew(t *testing.T) {
 		}, stripFuncs(tree))
 	})
 
+	t.Run("flags and positional args", func(t *testing.T) {
+		type embed3 struct {
+			J string `cli:"-j"`
+		}
+
+		type embed2 struct {
+			I string `cli:"-i"`
+			embed3
+		}
+
+		type embed1 struct {
+			H string `cli:"-h"`
+		}
+
+		type root struct {
+			_ struct{} `cli:"root"`
+			A string   `cli:"a"`
+			B string   `cli:"-b"`
+			C string   `cli:"--charlie"`
+			embed1
+			D string `cli:"-d,--delta,-D,--dee"`
+			E string `cli:"echo"`
+			F string `cli:"foxtrot"`
+			G string `cli:"...golf"`
+			embed2
+		}
+
+		tree, err := cmdtree.New([]interface{}{
+			func(_ context.Context, _ root) error {
+				return nil
+			},
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, cmdtree.CommandTree{
+			Name:   "root",
+			Config: reflect.TypeOf(root{}),
+			Flags: []cmdtree.Flag{
+				cmdtree.Flag{Field: []int{2}, ShortNames: []string{"b"}, LongNames: []string{}},
+				cmdtree.Flag{Field: []int{3}, ShortNames: []string{}, LongNames: []string{"charlie"}},
+				cmdtree.Flag{Field: []int{4, 0}, ShortNames: []string{"h"}, LongNames: []string{}},
+				cmdtree.Flag{Field: []int{5}, ShortNames: []string{"d", "D"}, LongNames: []string{"delta", "dee"}},
+				cmdtree.Flag{Field: []int{9, 0}, ShortNames: []string{"i"}, LongNames: []string{}},
+				cmdtree.Flag{Field: []int{9, 1, 0}, ShortNames: []string{"j"}, LongNames: []string{}},
+			},
+			Children: []cmdtree.ChildCommand{},
+		}, stripFuncs(tree))
+
+	})
+
 	t.Run("two subcommands", func(t *testing.T) {
 		type root struct{}
 

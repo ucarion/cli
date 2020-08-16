@@ -2,6 +2,7 @@ package cmdtree
 
 import (
 	"reflect"
+	"strings"
 )
 
 const TagSubCommand = "subcmd"
@@ -136,7 +137,6 @@ func newConfigFromType(t reflect.Type) config {
 			c.ParentType = f.Type
 			c.ParentConfigField = i
 			c.Name = name
-			return c
 		}
 
 		// Special-case for manually naming a command: a field named "_" whose
@@ -148,7 +148,47 @@ func newConfigFromType(t reflect.Type) config {
 		}
 	}
 
+	addParamsFromType(&c, []int{}, t)
+
 	return c
+}
+
+func addParamsFromType(c *config, indexPrefix []int, t reflect.Type) {
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		index := append(indexPrefix, i)
+
+		if f.Anonymous {
+			addParamsFromType(c, index, f.Type)
+			continue
+		}
+
+		name, ok := f.Tag.Lookup(TagCLI)
+		if !ok {
+			continue
+		}
+
+		longNames := []string{}
+		shortNames := []string{}
+
+		parts := strings.Split(name, ",")
+		for _, part := range parts {
+			switch {
+			case strings.HasPrefix(part, "--"):
+				longNames = append(longNames, part[2:])
+			case strings.HasPrefix(part, "-"):
+				shortNames = append(shortNames, part[1:])
+			}
+		}
+
+		if len(longNames) > 0 || len(shortNames) > 0 {
+			c.Flags = append(c.Flags, Flag{
+				Field:      index,
+				LongNames:  longNames,
+				ShortNames: shortNames,
+			})
+		}
+	}
 }
 
 func newCmd(children map[reflect.Type][]config, root config) CommandTree {
