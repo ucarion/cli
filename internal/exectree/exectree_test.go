@@ -34,10 +34,11 @@ func TestExec(t *testing.T) {
 
 	t.Run("flags", func(t *testing.T) {
 		type args struct {
-			A bool   `cli:"-a"`
-			B bool   `cli:"-b"`
-			C bool   `cli:"-c"`
-			X string `cli:"-x"`
+			A bool   `cli:"-a,--alpha"`
+			B bool   `cli:"-b,--bravo"`
+			C bool   `cli:"-c,--charlie"`
+			X string `cli:"-x,--x-ray"`
+			Y string `cli:"-y,--yankee"`
 		}
 
 		type testCase struct {
@@ -47,6 +48,7 @@ func TestExec(t *testing.T) {
 		}
 
 		testCases := []testCase{
+			// short bool flags
 			testCase{
 				In:  []string{"-a"},
 				Out: args{A: true},
@@ -64,6 +66,7 @@ func TestExec(t *testing.T) {
 				Out: args{A: true, B: true, C: true},
 			},
 
+			// short string flags
 			testCase{
 				In:  []string{"-x", "foo"},
 				Out: args{X: "foo"},
@@ -79,6 +82,36 @@ func TestExec(t *testing.T) {
 			testCase{
 				In:  []string{"-xabc"},
 				Out: args{X: "abc"},
+			},
+
+			// long bool flags
+			testCase{
+				In:  []string{"--alpha"},
+				Out: args{A: true},
+			},
+			testCase{
+				In:  []string{"--alpha", "--bravo", "--charlie"},
+				Out: args{A: true, B: true, C: true},
+			},
+
+			// long string flags
+			testCase{
+				In:  []string{"--x-ray", "foo"},
+				Out: args{X: "foo"},
+			},
+			testCase{
+				In:  []string{"--x-ray=foo"},
+				Out: args{X: "foo"},
+			},
+			testCase{
+				In:  []string{"--x-ray=foo=bar"},
+				Out: args{X: "foo=bar"},
+			},
+
+			// mixed
+			testCase{
+				In:  []string{"--alpha", "-cxfoo", "-b", "--yankee", "--bravo"},
+				Out: args{A: true, B: true, C: true, X: "foo", Y: "--bravo"},
 			},
 		}
 
