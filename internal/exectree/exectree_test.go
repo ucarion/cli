@@ -204,6 +204,60 @@ func TestExec(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("subcommands", func(t *testing.T) {
+		type rootArgs struct {
+			A bool   `cli:"-a,--alpha"`
+			B string `cli:"-b,--bravo"`
+		}
+
+		type subArgs struct {
+			RootArgs rootArgs `subcmd:"sub"`
+			C        bool     `cli:"-c,--charlie"`
+			D        string   `cli:"-d,--delta"`
+			X        string   `cli:"x"`
+			Y        string   `cli:"y"`
+			Z        []string `cli:"...z"`
+		}
+
+		testCases := []struct {
+			In  []string
+			Out subArgs
+			Err error
+		}{
+			{
+				In:  []string{"sub", "a", "b"},
+				Out: subArgs{X: "a", Y: "b"},
+			},
+			{
+				In:  []string{"sub", "a", "b", "c", "d", "e"},
+				Out: subArgs{X: "a", Y: "b", Z: []string{"c", "d", "e"}},
+			},
+			{
+				In:  []string{"--alpha", "--bravo=foo", "sub", "--charlie", "--delta=bar", "a", "b"},
+				Out: subArgs{RootArgs: rootArgs{A: true, B: "foo"}, C: true, D: "bar", X: "a", Y: "b"},
+			},
+		}
+
+		for _, tt := range testCases {
+			t.Run(strings.Join(tt.In, " "), func(t *testing.T) {
+				var mock mock.Mock
+				defer mock.AssertExpectations(t)
+
+				tree, err := cmdtree.New([]interface{}{
+					func(ctx context.Context, args subArgs) error {
+						return mock.Called(ctx, args).Error(0)
+					},
+				})
+
+				assert.NoError(t, err)
+
+				ctx := context.TODO()
+				mock.On("1", ctx, tt.Out).Return(nil)
+				assert.Equal(t, tt.Err, exectree.Exec(ctx, tree, tt.In))
+			})
+		}
+	})
 }
 
 func strPointer(s string) *string {

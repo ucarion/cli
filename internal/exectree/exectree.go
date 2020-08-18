@@ -101,6 +101,19 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 				}
 			}
 		default:
+			// This is either a positional argument or a subcommand. It's not
+			// possible for a commmand to have both positional arguments and
+			// sub-commands.
+			for _, child := range tree.Children {
+				if child.Name == arg {
+					// This child is our argument. Forward along what we have
+					// already to the child, and that's all we'll do here.
+					childConfig := reflect.New(child.Config).Elem()
+					childConfig.Field(child.ParentConfigField).Set(config)
+					return exec(ctx, childConfig, child.CommandTree, args)
+				}
+			}
+
 			// This is a positional argument. The next positional argument's
 			// value is arg.
 			if posArgIndex == len(tree.PosArgs) {
