@@ -42,95 +42,93 @@ func TestExec(t *testing.T) {
 			Z *string `cli:"-z,--zulu"`
 		}
 
-		type testCase struct {
+		testCases := []struct {
 			In  []string
 			Out args
 			Err error
-		}
-
-		testCases := []testCase{
+		}{
 			// short bool flags
-			testCase{
+			{
 				In:  []string{"-a"},
 				Out: args{A: true},
 			},
-			testCase{
+			{
 				In:  []string{"-a", "-b", "-c"},
 				Out: args{A: true, B: true, C: true},
 			},
-			testCase{
+			{
 				In:  []string{"-abc"},
 				Out: args{A: true, B: true, C: true},
 			},
-			testCase{
+			{
 				In:  []string{"-ba", "-c"},
 				Out: args{A: true, B: true, C: true},
 			},
 
 			// short string flags
-			testCase{
+			{
 				In:  []string{"-x", "foo"},
 				Out: args{X: "foo"},
 			},
-			testCase{
+			{
 				In:  []string{"-xfoo"},
 				Out: args{X: "foo"},
 			},
-			testCase{
+			{
 				In:  []string{"-abcxfoo"},
 				Out: args{A: true, B: true, C: true, X: "foo"},
 			},
-			testCase{
+			{
 				In:  []string{"-xabc"},
 				Out: args{X: "abc"},
 			},
 
 			// short optionally-taking-value flags
-			testCase{
+			{
 				In:  []string{"-z"},
 				Out: args{Z: strPointer("")},
 			},
-			testCase{
+			{
 				In:  []string{"-zfoo"},
 				Out: args{Z: strPointer("foo")},
 			},
 
 			// long bool flags
-			testCase{
+			{
 				In:  []string{"--alpha"},
 				Out: args{A: true},
 			},
-			testCase{
+			{
 				In:  []string{"--alpha", "--bravo", "--charlie"},
 				Out: args{A: true, B: true, C: true},
 			},
 
 			// long string flags
-			testCase{
+			{
 				In:  []string{"--x-ray", "foo"},
 				Out: args{X: "foo"},
 			},
-			testCase{
+			{
 				In:  []string{"--x-ray=foo"},
 				Out: args{X: "foo"},
 			},
-			testCase{
+			{
 				In:  []string{"--x-ray=foo=bar"},
 				Out: args{X: "foo=bar"},
 			},
 
 			// long optionally-taking-value flags
-			testCase{
+			{
 				In:  []string{"--zulu"},
 				Out: args{Z: strPointer("")},
 			},
-			testCase{
+			{
 				In:  []string{"--zulu=foo"},
 				Out: args{Z: strPointer("foo")},
 			},
 
 			// mixed
-			testCase{
+			{
 				In:  []string{"--alpha", "-cxfoo", "-bz", "--yankee", "--bravo"},
 				Out: args{A: true, B: true, C: true, X: "foo", Y: "--bravo", Z: strPointer("")},
 			},
