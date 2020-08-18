@@ -41,7 +41,7 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 				// form, e.g. "--foo" or "--foo bar".
 				flag, _ := getLongFlag(tree, arg[2:]) // TODO handle not there
 
-				if flagTakesValue(tree.Config, flag) {
+				if mustTakeValue(tree.Config, flag) {
 					// The flag takes a value. The next arg must be its value.
 					arg, args = args[0], args[1:] // TODO no next arg
 					setConfigField(config, flag.Field, arg)
@@ -66,8 +66,8 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 				// Try to find the corresponding short flag in the config.
 				flag, _ := getShortFlag(tree, char) // TODO handle not there
 
-				// Does the flag take a value?
-				if flagTakesValue(tree.Config, flag) {
+				// Can the flag take a value?
+				if mayTakeValue(tree.Config, flag) {
 					fmt.Println("chars", flag, chars)
 					// The flag does take a value. It may take on one of two
 					// forms, which must be handled separately.
@@ -77,10 +77,20 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 						setConfigField(config, flag.Field, chars)
 						chars = "" // reset chars so we stop looking for more flags
 					} else {
-						// The flag is in the "separate" form, e.g. "-o json". The next
-						// arg is the flag's value.
-						arg, args = args[0], args[1:] // TODO no next arg
-						setConfigField(config, flag.Field, arg)
+						// The flag is either in the "separate" form, e.g. "-o
+						// json", or it doesn't *have* to take a value.
+						if mustTakeValue(tree.Config, flag) {
+							// The flag must take a value, so the next arg must
+							// be the flag's value.
+							arg, args = args[0], args[1:] // TODO no next arg
+							setConfigField(config, flag.Field, arg)
+						} else {
+							// The flag doesn't have to take a value. In such a
+							// case, the "separate" form isn't applicable, and
+							// the flag was merely "enabled", and not set to a
+							// particular value.
+							setConfigField(config, flag.Field, "")
+						}
 					}
 				} else {
 					// The flag does not take a value. We just assign the
@@ -128,6 +138,8 @@ func getLongFlag(tree cmdtree.CommandTree, s string) (cmdtree.Flag, bool) {
 func setConfigField(config reflect.Value, index []int, val string) {
 	// TODO other field types
 	switch v := config.FieldByIndex(index).Addr().Interface().(type) {
+	case **string:
+		*v = &val
 	case *string:
 		*v = val
 	case *bool:
@@ -135,7 +147,12 @@ func setConfigField(config reflect.Value, index []int, val string) {
 	}
 }
 
-func flagTakesValue(config reflect.Type, flag cmdtree.Flag) bool {
-	// Everything except bool-typed fields take values
+func mayTakeValue(config reflect.Type, flag cmdtree.Flag) bool {
+	// Everything except bool-typed fields may take values
 	return config.FieldByIndex(flag.Field).Type != reflect.TypeOf(true)
+}
+
+func mustTakeValue(config reflect.Type, flag cmdtree.Flag) bool {
+	// Everything except bool-typed fields and point-typed fields take values
+	return mayTakeValue(config, flag) && config.FieldByIndex(flag.Field).Type.Kind() != reflect.Ptr
 }

@@ -34,11 +34,12 @@ func TestExec(t *testing.T) {
 
 	t.Run("flags", func(t *testing.T) {
 		type args struct {
-			A bool   `cli:"-a,--alpha"`
-			B bool   `cli:"-b,--bravo"`
-			C bool   `cli:"-c,--charlie"`
-			X string `cli:"-x,--x-ray"`
-			Y string `cli:"-y,--yankee"`
+			A bool    `cli:"-a,--alpha"`
+			B bool    `cli:"-b,--bravo"`
+			C bool    `cli:"-c,--charlie"`
+			X string  `cli:"-x,--x-ray"`
+			Y string  `cli:"-y,--yankee"`
+			Z *string `cli:"-z,--zulu"`
 		}
 
 		type testCase struct {
@@ -84,6 +85,16 @@ func TestExec(t *testing.T) {
 				Out: args{X: "abc"},
 			},
 
+			// short optionally-taking-value flags
+			testCase{
+				In:  []string{"-z"},
+				Out: args{Z: strPointer("")},
+			},
+			testCase{
+				In:  []string{"-zfoo"},
+				Out: args{Z: strPointer("foo")},
+			},
+
 			// long bool flags
 			testCase{
 				In:  []string{"--alpha"},
@@ -108,10 +119,20 @@ func TestExec(t *testing.T) {
 				Out: args{X: "foo=bar"},
 			},
 
+			// long optionally-taking-value flags
+			testCase{
+				In:  []string{"--zulu"},
+				Out: args{Z: strPointer("")},
+			},
+			testCase{
+				In:  []string{"--zulu=foo"},
+				Out: args{Z: strPointer("foo")},
+			},
+
 			// mixed
 			testCase{
-				In:  []string{"--alpha", "-cxfoo", "-b", "--yankee", "--bravo"},
-				Out: args{A: true, B: true, C: true, X: "foo", Y: "--bravo"},
+				In:  []string{"--alpha", "-cxfoo", "-bz", "--yankee", "--bravo"},
+				Out: args{A: true, B: true, C: true, X: "foo", Y: "--bravo", Z: strPointer("")},
 			},
 		}
 
@@ -135,4 +156,8 @@ func TestExec(t *testing.T) {
 		}
 
 	})
+}
+
+func strPointer(s string) *string {
+	return &s
 }
