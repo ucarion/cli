@@ -14,6 +14,8 @@ func Exec(ctx context.Context, tree cmdtree.CommandTree, args []string) error {
 }
 
 func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, args []string) error {
+	posArgIndex := 0 // index of the next positional argument to assign to
+
 	// Process args until there are no more args.
 	for len(args) > 0 {
 		var arg string // the arg we're processing next
@@ -98,6 +100,21 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 					setConfigField(config, flag.Field, "")
 				}
 			}
+		default:
+			// This is a positional argument. The next positional argument's
+			// value is arg.
+			if posArgIndex == len(tree.PosArgs) {
+				// We have already used all the positional arguments. So this
+				// argument must go into the trailing set of positional
+				// arguments.
+
+				// TODO handle no trailing posargs in tree
+				setConfigField(config, tree.TrailingArgs.Field, arg)
+			} else {
+				setConfigField(config, tree.PosArgs[posArgIndex].Field, arg)
+				posArgIndex++
+			}
+
 		}
 	}
 
@@ -140,6 +157,8 @@ func setConfigField(config reflect.Value, index []int, val string) {
 	switch v := config.FieldByIndex(index).Addr().Interface().(type) {
 	case **string:
 		*v = &val
+	case *[]string:
+		*v = append(*v, val)
 	case *string:
 		*v = val
 	case *bool:

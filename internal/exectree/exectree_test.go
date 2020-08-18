@@ -154,7 +154,55 @@ func TestExec(t *testing.T) {
 				assert.Equal(t, tt.Err, exectree.Exec(ctx, tree, tt.In))
 			})
 		}
+	})
 
+	t.Run("positional arguments", func(t *testing.T) {
+		type args struct {
+			A bool     `cli:"-a,--alpha"`
+			B string   `cli:"-b,--bravo"`
+			X string   `cli:"x"`
+			Y string   `cli:"y"`
+			Z []string `cli:"...z"`
+		}
+
+		testCases := []struct {
+			In  []string
+			Out args
+			Err error
+		}{
+			// no-flags cases
+			{
+				In:  []string{"a", "b"},
+				Out: args{X: "a", Y: "b"},
+			},
+			{
+				In:  []string{"a", "b", "c"},
+				Out: args{X: "a", Y: "b", Z: []string{"c"}},
+			},
+			{
+				In:  []string{"a", "b", "c", "d", "e"},
+				Out: args{X: "a", Y: "b", Z: []string{"c", "d", "e"}},
+			},
+		}
+
+		for _, tt := range testCases {
+			t.Run(strings.Join(tt.In, " "), func(t *testing.T) {
+				var mock mock.Mock
+				defer mock.AssertExpectations(t)
+
+				tree, err := cmdtree.New([]interface{}{
+					func(ctx context.Context, args args) error {
+						return mock.Called(ctx, args).Error(0)
+					},
+				})
+
+				assert.NoError(t, err)
+
+				ctx := context.TODO()
+				mock.On("1", ctx, tt.Out).Return(nil)
+				assert.Equal(t, tt.Err, exectree.Exec(ctx, tree, tt.In))
+			})
+		}
 	})
 }
 
