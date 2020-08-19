@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -83,10 +84,10 @@ func TestNew(t *testing.T) {
 			B string   `cli:"-b"`
 			C string   `cli:"--charlie"`
 			embed1
-			D string `cli:"-d,--delta,-D,--dee"`
-			E string `cli:"echo"`
-			F string `cli:"foxtrot"`
-			G string `cli:"...golf"`
+			D string   `cli:"-d,--delta,-D,--dee"`
+			E string   `cli:"echo"`
+			F string   `cli:"foxtrot"`
+			G []string `cli:"...golf"`
 			embed2
 		}
 
@@ -398,6 +399,187 @@ func TestNew(t *testing.T) {
 			},
 		}, stripFuncs(tree))
 	})
+
+	t.Run("gamut of valid types", func(t *testing.T) {
+		type args struct {
+			Bool          bool          `cli:"--bool"`
+			Int           int           `cli:"--int"`
+			Int8          int8          `cli:"--int8"`
+			Int16         int16         `cli:"--int16"`
+			Int32         int32         `cli:"--int32"`
+			Int64         int64         `cli:"--int64"`
+			Uint          uint          `cli:"--uint"`
+			Uint8         uint8         `cli:"--uint8"`
+			Uint16        uint16        `cli:"--uint16"`
+			Uint32        uint32        `cli:"--uint32"`
+			Uintptr       uintptr       `cli:"--uintptr"`
+			Float32       float32       `cli:"--float32"`
+			Float64       float64       `cli:"--float64"`
+			Complex64     complex64     `cli:"--complex64"`
+			Complex128    complex128    `cli:"--complex128"`
+			String        string        `cli:"--string"`
+			Value         customValue   `cli:"--value"`
+			StringArr     []string      `cli:"--string-arr"`
+			ValueArr      []customValue `cli:"--value-arr"`
+			OptionalValue *customValue  `cli:"--opt-value"`
+			OptionalStr   *string       `cli:"--opt-string"`
+		}
+
+		_, err := cmdtree.New([]interface{}{
+			func(_ context.Context, _ args) error { return nil },
+		})
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("not a valid function", func(t *testing.T) {
+		type args struct{}
+
+		testCases := []interface{}{
+			nil,
+			"foo",
+			func() {},
+			func(_ args) {},
+			func(_ context.Context, _ args) {},
+			func(_ args) error { return nil },
+			func(_ context.Context, _ string) error { return nil },
+			func(_ context.Context, _ *args) error { return nil },
+		}
+
+		for i, tt := range testCases {
+			t.Run(strconv.Itoa(i), func(t *testing.T) {
+				_, err := cmdtree.New([]interface{}{tt})
+				assert.Equal(t, cmdtree.NotValidFunctionErr{reflect.ValueOf(tt)}, err)
+			})
+		}
+	})
+
+	t.Run("multiple subcmd uses", func(t *testing.T) {
+		type rootArgs struct{}
+
+		type subArgs struct {
+			Root1 rootArgs `subcmd:"foo"`
+			Root2 rootArgs `subcmd:"foo"`
+		}
+
+		_, err := cmdtree.New([]interface{}{
+			func(_ context.Context, _ subArgs) error { return nil },
+		})
+
+		assert.Equal(t, cmdtree.ErrMultipleSubcmdTags, err)
+	})
+
+	t.Run("bad config field type", func(t *testing.T) {
+		t.Run("bool pointer", func(t *testing.T) {
+			type args struct {
+				X *bool `cli:"-x"`
+			}
+
+			_, err := cmdtree.New([]interface{}{
+				func(_ context.Context, _ args) error { return nil },
+			})
+
+			assert.Equal(t, cmdtree.InvalidConfigFieldTypeErr{
+				Type: reflect.TypeOf((*bool)(nil)),
+			}, err)
+		})
+
+		t.Run("string pointer pointer", func(t *testing.T) {
+			type args struct {
+				X **string `cli:"-x"`
+			}
+
+			_, err := cmdtree.New([]interface{}{
+				func(_ context.Context, _ args) error { return nil },
+			})
+
+			assert.Equal(t, cmdtree.InvalidConfigFieldTypeErr{
+				Type: reflect.TypeOf((**string)(nil)),
+			}, err)
+		})
+
+		t.Run("channel", func(t *testing.T) {
+			type args struct {
+				X chan bool `cli:"-x"`
+			}
+
+			_, err := cmdtree.New([]interface{}{
+				func(_ context.Context, _ args) error { return nil },
+			})
+
+			assert.Equal(t, cmdtree.InvalidConfigFieldTypeErr{
+				Type: reflect.TypeOf((chan bool)(nil)),
+			}, err)
+		})
+
+		t.Run("func", func(t *testing.T) {
+			type args struct {
+				X func() `cli:"-x"`
+			}
+
+			_, err := cmdtree.New([]interface{}{
+				func(_ context.Context, _ args) error { return nil },
+			})
+
+			assert.Equal(t, cmdtree.InvalidConfigFieldTypeErr{
+				Type: reflect.TypeOf((func())(nil)),
+			}, err)
+		})
+
+		t.Run("map", func(t *testing.T) {
+			type args struct {
+				X map[bool]bool `cli:"-x"`
+			}
+
+			_, err := cmdtree.New([]interface{}{
+				func(_ context.Context, _ args) error { return nil },
+			})
+
+			assert.Equal(t, cmdtree.InvalidConfigFieldTypeErr{
+				Type: reflect.TypeOf((map[bool]bool)(nil)),
+			}, err)
+		})
+
+		t.Run("interface", func(t *testing.T) {
+			type args struct {
+				X interface{} `cli:"-x"`
+			}
+
+			_, err := cmdtree.New([]interface{}{
+				func(_ context.Context, _ args) error { return nil },
+			})
+
+			assert.Equal(t, cmdtree.InvalidConfigFieldTypeErr{
+				Type: reflect.TypeOf((*interface{})(nil)).Elem(),
+			}, err)
+		})
+
+		t.Run("struct", func(t *testing.T) {
+			type args struct {
+				X struct{} `cli:"-x"`
+			}
+
+			_, err := cmdtree.New([]interface{}{
+				func(_ context.Context, _ args) error { return nil },
+			})
+
+			assert.Equal(t, cmdtree.InvalidConfigFieldTypeErr{
+				Type: reflect.TypeOf(struct{}{}),
+			}, err)
+		})
+
+		t.Run("non-slice trailing args", func(t *testing.T) {
+			type args struct {
+				X string `cli:"...x"`
+			}
+
+			_, err := cmdtree.New([]interface{}{
+				func(_ context.Context, _ args) error { return nil },
+			})
+
+			assert.Equal(t, cmdtree.ErrTrailingMustBeSlice, err)
+		})
+	})
 }
 
 func stripFuncs(tree cmdtree.CommandTree) cmdtree.CommandTree {
@@ -410,4 +592,10 @@ func stripFuncs(tree cmdtree.CommandTree) cmdtree.CommandTree {
 	tree.Func = reflect.Value{}
 	tree.Children = children
 	return tree
+}
+
+type customValue struct{}
+
+func (c customValue) Set(_ string) error {
+	return nil
 }
