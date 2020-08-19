@@ -2,11 +2,12 @@ package exectree
 
 import (
 	"context"
-	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/ucarion/cli/internal/cmdtree"
+	"github.com/ucarion/cli/value"
 )
 
 func Exec(ctx context.Context, tree cmdtree.CommandTree, args []string) error {
@@ -37,7 +38,9 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 				name, value := argParts[0][2:], argParts[1]
 
 				flag, _ := getLongFlag(tree, name) // TODO handle not there
-				setConfigField(config, flag.Field, value)
+				if err := setConfigField(config, flag.Field, value); err != nil {
+					return err
+				}
 			} else {
 				// The flag either doesn't take a value, or is in the separate
 				// form, e.g. "--foo" or "--foo bar".
@@ -46,11 +49,15 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 				if mustTakeValue(tree.Config, flag) {
 					// The flag takes a value. The next arg must be its value.
 					arg, args = args[0], args[1:] // TODO no next arg
-					setConfigField(config, flag.Field, arg)
+					if err := setConfigField(config, flag.Field, arg); err != nil {
+						return err
+					}
 				} else {
 					// The flag does not take a value. We just assign the
 					// appropriate field to "true".
-					setConfigField(config, flag.Field, "")
+					if err := setConfigField(config, flag.Field, ""); err != nil {
+						return err
+					}
 				}
 			}
 		case strings.HasPrefix(arg, "-"):
@@ -70,13 +77,15 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 
 				// Can the flag take a value?
 				if mayTakeValue(tree.Config, flag) {
-					fmt.Println("chars", flag, chars)
 					// The flag does take a value. It may take on one of two
 					// forms, which must be handled separately.
 					if len(chars) > 0 {
 						// The flag is in the "stuck" form, e.g. "-ojson". The flag's
 						// value is the rest of the arg following the name of the flag.
-						setConfigField(config, flag.Field, chars)
+						if err := setConfigField(config, flag.Field, chars); err != nil {
+							return err
+						}
+
 						chars = "" // reset chars so we stop looking for more flags
 					} else {
 						// The flag is either in the "separate" form, e.g. "-o
@@ -85,19 +94,25 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 							// The flag must take a value, so the next arg must
 							// be the flag's value.
 							arg, args = args[0], args[1:] // TODO no next arg
-							setConfigField(config, flag.Field, arg)
+							if err := setConfigField(config, flag.Field, arg); err != nil {
+								return err
+							}
 						} else {
 							// The flag doesn't have to take a value. In such a
 							// case, the "separate" form isn't applicable, and
 							// the flag was merely "enabled", and not set to a
 							// particular value.
-							setConfigField(config, flag.Field, "")
+							if err := setConfigField(config, flag.Field, ""); err != nil {
+								return err
+							}
 						}
 					}
 				} else {
 					// The flag does not take a value. We just assign the
 					// appropriate field to "true".
-					setConfigField(config, flag.Field, "")
+					if err := setConfigField(config, flag.Field, ""); err != nil {
+						return err
+					}
 				}
 			}
 		default:
@@ -122,9 +137,14 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 				// arguments.
 
 				// TODO handle no trailing posargs in tree
-				setConfigField(config, tree.TrailingArgs.Field, arg)
+				if err := setConfigField(config, tree.TrailingArgs.Field, arg); err != nil {
+					return err
+				}
 			} else {
-				setConfigField(config, tree.PosArgs[posArgIndex].Field, arg)
+				if err := setConfigField(config, tree.PosArgs[posArgIndex].Field, arg); err != nil {
+					return err
+				}
+
 				posArgIndex++
 			}
 
@@ -165,18 +185,96 @@ func getLongFlag(tree cmdtree.CommandTree, s string) (cmdtree.Flag, bool) {
 	return cmdtree.Flag{}, false
 }
 
-func setConfigField(config reflect.Value, index []int, val string) {
-	// TODO other field types
-	switch v := config.FieldByIndex(index).Addr().Interface().(type) {
-	case **string:
-		*v = &val
-	case *[]string:
-		*v = append(*v, val)
-	case *string:
-		*v = val
+func setConfigField(config reflect.Value, index []int, val string) error {
+	v := config.FieldByIndex(index).Addr()
+
+	switch {
+	case v.Type().Elem().Kind() == reflect.Slice:
+		// TODO this code is very subtle. Can we make it so that by the time
+		// exectree wants to populate the config, there's a straightforward
+		// interface instance it can simply plop the data into?
+		elem := reflect.New(v.Type().Elem().Elem())
+		if err := setValue(elem, val); err != nil {
+			return err
+		}
+
+		v.Elem().Set(reflect.Append(v.Elem(), elem.Elem()))
+
+		return nil
+	case v.Type().Elem().Kind() == reflect.Ptr:
+		elem := reflect.New(v.Type().Elem().Elem())
+		if err := setValue(elem, val); err != nil {
+			return err
+		}
+
+		v.Elem().Set(elem)
+
+		return nil
+	default:
+		setValue(v, val)
+		return nil
+	}
+}
+
+func setValue(v reflect.Value, val string) error {
+	switch v := v.Interface().(type) {
 	case *bool:
 		*v = true
+	case *int:
+		i, err := strconv.ParseInt(val, 0, 0)
+		*v = int(i)
+		return err
+	case *int8:
+		i, err := strconv.ParseInt(val, 0, 8)
+		*v = int8(i)
+		return err
+	case *int16:
+		i, err := strconv.ParseInt(val, 0, 16)
+		*v = int16(i)
+		return err
+	case *int32:
+		i, err := strconv.ParseInt(val, 0, 32)
+		*v = int32(i)
+		return err
+	case *int64:
+		i, err := strconv.ParseInt(val, 0, 64)
+		*v = int64(i)
+		return err
+	case *uint:
+		i, err := strconv.ParseUint(val, 0, 0)
+		*v = uint(i)
+		return err
+	case *uint8:
+		i, err := strconv.ParseUint(val, 0, 8)
+		*v = uint8(i)
+		return err
+	case *uint16:
+		i, err := strconv.ParseUint(val, 0, 16)
+		*v = uint16(i)
+		return err
+	case *uint32:
+		i, err := strconv.ParseUint(val, 0, 32)
+		*v = uint32(i)
+		return err
+	case *uint64:
+		i, err := strconv.ParseUint(val, 0, 64)
+		*v = uint64(i)
+		return err
+	case *float32:
+		f, err := strconv.ParseFloat(val, 32)
+		*v = float32(f)
+		return err
+	case *float64:
+		f, err := strconv.ParseFloat(val, 64)
+		*v = float64(f)
+		return err
+	case *string:
+		*v = val
+	case value.Value:
+		return v.Set(val)
 	}
+
+	return nil
 }
 
 func mayTakeValue(config reflect.Type, flag cmdtree.Flag) bool {

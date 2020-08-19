@@ -303,16 +303,13 @@ func checkValidFieldType(t reflect.Type) error {
 		reflect.Uint16,
 		reflect.Uint32,
 		reflect.Uint64,
-		reflect.Uintptr,
 		reflect.Float32,
 		reflect.Float64,
-		reflect.Complex64,
-		reflect.Complex128,
 		reflect.String:
 		return nil
 	case reflect.Struct:
 		// A struct is valid only if it implements Value.
-		if t.Implements(valueType) {
+		if reflect.PtrTo(t).Implements(valueType) {
 			return nil
 		}
 

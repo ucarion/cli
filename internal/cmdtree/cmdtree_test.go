@@ -412,11 +412,9 @@ func TestNew(t *testing.T) {
 			Uint8         uint8         `cli:"--uint8"`
 			Uint16        uint16        `cli:"--uint16"`
 			Uint32        uint32        `cli:"--uint32"`
-			Uintptr       uintptr       `cli:"--uintptr"`
+			Uint64        uint64        `cli:"--uint64"`
 			Float32       float32       `cli:"--float32"`
 			Float64       float64       `cli:"--float64"`
-			Complex64     complex64     `cli:"--complex64"`
-			Complex128    complex128    `cli:"--complex128"`
 			String        string        `cli:"--string"`
 			Value         customValue   `cli:"--value"`
 			StringArr     []string      `cli:"--string-arr"`
@@ -509,6 +507,48 @@ func TestNew(t *testing.T) {
 
 			assert.Equal(t, cmdtree.InvalidConfigFieldTypeErr{
 				Type: reflect.TypeOf((chan bool)(nil)),
+			}, err)
+		})
+
+		t.Run("uintptr", func(t *testing.T) {
+			type args struct {
+				X uintptr `cli:"-x"`
+			}
+
+			_, err := cmdtree.New([]interface{}{
+				func(_ context.Context, _ args) error { return nil },
+			})
+
+			assert.Equal(t, cmdtree.InvalidConfigFieldTypeErr{
+				Type: reflect.TypeOf((uintptr)(0)),
+			}, err)
+		})
+
+		t.Run("complex64", func(t *testing.T) {
+			type args struct {
+				X complex64 `cli:"-x"`
+			}
+
+			_, err := cmdtree.New([]interface{}{
+				func(_ context.Context, _ args) error { return nil },
+			})
+
+			assert.Equal(t, cmdtree.InvalidConfigFieldTypeErr{
+				Type: reflect.TypeOf((complex64)(0)),
+			}, err)
+		})
+
+		t.Run("complex128", func(t *testing.T) {
+			type args struct {
+				X complex128 `cli:"-x"`
+			}
+
+			_, err := cmdtree.New([]interface{}{
+				func(_ context.Context, _ args) error { return nil },
+			})
+
+			assert.Equal(t, cmdtree.InvalidConfigFieldTypeErr{
+				Type: reflect.TypeOf((complex128)(0)),
 			}, err)
 		})
 
