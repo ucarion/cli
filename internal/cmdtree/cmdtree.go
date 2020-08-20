@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/ucarion/cli/value"
+	"github.com/ucarion/cli/param"
 )
 
 const TagSubCommand = "subcmd"
@@ -264,7 +264,7 @@ func getFieldOverrideName(f reflect.StructField) (string, bool) {
 // of nil to reflect.TypeOf, you get back nil. The context and error types are
 // used in checkValidFunction further below.
 var (
-	valueType = reflect.TypeOf((*value.Value)(nil)).Elem()
+	paramType = reflect.TypeOf((*param.Param)(nil)).Elem()
 	ctxType   = reflect.TypeOf((*context.Context)(nil)).Elem()
 	errType   = reflect.TypeOf((*error)(nil)).Elem()
 )
@@ -308,8 +308,8 @@ func checkValidFieldType(t reflect.Type) error {
 		reflect.String:
 		return nil
 	case reflect.Struct:
-		// A struct is valid only if it implements Value.
-		if reflect.PtrTo(t).Implements(valueType) {
+		// A struct is valid only if it implements Param.
+		if reflect.PtrTo(t).Implements(paramType) {
 			return nil
 		}
 

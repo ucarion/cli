@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/ucarion/cli/internal/cmdtree"
-	"github.com/ucarion/cli/value"
+	"github.com/ucarion/cli/param"
 )
 
 func Exec(ctx context.Context, tree cmdtree.CommandTree, args []string) error {
@@ -270,7 +270,7 @@ func setValue(v reflect.Value, val string) error {
 		return err
 	case *string:
 		*v = val
-	case value.Value:
+	case param.Param:
 		return v.Set(val)
 	}
 
