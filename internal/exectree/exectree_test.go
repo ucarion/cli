@@ -378,8 +378,16 @@ func TestExec(t *testing.T) {
 				Out: args{OptionalStr: strPointer("xxx")},
 			},
 			{
+				In:  []string{"--opt-string"},
+				Out: args{OptionalStr: strPointer("")},
+			},
+			{
 				In:  []string{"--opt-value=xxx"},
 				Out: args{OptionalValue: &customValue{"xxx"}},
+			},
+			{
+				In:  []string{"--opt-value"},
+				Out: args{OptionalValue: &customValue{}},
 			},
 		}
 
