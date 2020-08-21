@@ -3,7 +3,6 @@ package exectree
 import (
 	"context"
 	"reflect"
-	"strconv"
 	"strings"
 
 	"github.com/ucarion/cli/internal/cmdtree"
@@ -186,95 +185,9 @@ func getLongFlag(tree cmdtree.CommandTree, s string) (cmdtree.Flag, bool) {
 }
 
 func setConfigField(config reflect.Value, index []int, val string) error {
-	v := config.FieldByIndex(index).Addr()
-
-	switch {
-	case v.Type().Elem().Kind() == reflect.Slice:
-		// TODO this code is very subtle. Can we make it so that by the time
-		// exectree wants to populate the config, there's a straightforward
-		// interface instance it can simply plop the data into?
-		elem := reflect.New(v.Type().Elem().Elem())
-		if err := setValue(elem, val); err != nil {
-			return err
-		}
-
-		v.Elem().Set(reflect.Append(v.Elem(), elem.Elem()))
-
-		return nil
-	case v.Type().Elem().Kind() == reflect.Ptr:
-		elem := reflect.New(v.Type().Elem().Elem())
-		if err := setValue(elem, val); err != nil {
-			return err
-		}
-
-		v.Elem().Set(elem)
-
-		return nil
-	default:
-		setValue(v, val)
-		return nil
-	}
-}
-
-func setValue(v reflect.Value, val string) error {
-	switch v := v.Interface().(type) {
-	case *bool:
-		*v = true
-	case *int:
-		i, err := strconv.ParseInt(val, 0, 0)
-		*v = int(i)
-		return err
-	case *int8:
-		i, err := strconv.ParseInt(val, 0, 8)
-		*v = int8(i)
-		return err
-	case *int16:
-		i, err := strconv.ParseInt(val, 0, 16)
-		*v = int16(i)
-		return err
-	case *int32:
-		i, err := strconv.ParseInt(val, 0, 32)
-		*v = int32(i)
-		return err
-	case *int64:
-		i, err := strconv.ParseInt(val, 0, 64)
-		*v = int64(i)
-		return err
-	case *uint:
-		i, err := strconv.ParseUint(val, 0, 0)
-		*v = uint(i)
-		return err
-	case *uint8:
-		i, err := strconv.ParseUint(val, 0, 8)
-		*v = uint8(i)
-		return err
-	case *uint16:
-		i, err := strconv.ParseUint(val, 0, 16)
-		*v = uint16(i)
-		return err
-	case *uint32:
-		i, err := strconv.ParseUint(val, 0, 32)
-		*v = uint32(i)
-		return err
-	case *uint64:
-		i, err := strconv.ParseUint(val, 0, 64)
-		*v = uint64(i)
-		return err
-	case *float32:
-		f, err := strconv.ParseFloat(val, 32)
-		*v = float32(f)
-		return err
-	case *float64:
-		f, err := strconv.ParseFloat(val, 64)
-		*v = float64(f)
-		return err
-	case *string:
-		*v = val
-	case param.Param:
-		return v.Set(val)
-	}
-
-	return nil
+	// cmdtree.New will have handled making sure all fields are param-friendly.
+	p, _ := param.New(config.FieldByIndex(index).Addr().Interface())
+	return p.Set(val)
 }
 
 func mayTakeValue(config reflect.Type, flag cmdtree.Flag) bool {
