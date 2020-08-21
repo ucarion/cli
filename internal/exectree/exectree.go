@@ -70,7 +70,7 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 				// form, e.g. "--foo" or "--foo bar".
 				flag, _ := getLongFlag(tree, arg[2:]) // TODO handle not there
 
-				if mustTakeValue(tree.Config, flag) {
+				if mustTakeValue(config, flag) {
 					// The flag takes a value. The next arg must be its value.
 					arg, args = args[0], args[1:] // TODO no next arg
 					if err := setConfigField(config, flag.Field, arg); err != nil {
@@ -100,7 +100,7 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 				flag, _ := getShortFlag(tree, char) // TODO handle not there
 
 				// Can the flag take a value?
-				if mayTakeValue(tree.Config, flag) {
+				if mayTakeValue(config, flag) {
 					// The flag does take a value. It may take on one of two
 					// forms, which must be handled separately.
 					if len(chars) > 0 {
@@ -114,7 +114,7 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 					} else {
 						// The flag is either in the "separate" form, e.g. "-o
 						// json", or it doesn't *have* to take a value.
-						if mustTakeValue(tree.Config, flag) {
+						if mustTakeValue(config, flag) {
 							// The flag must take a value, so the next arg must
 							// be the flag's value.
 							arg, args = args[0], args[1:] // TODO no next arg
@@ -214,12 +214,12 @@ func setConfigField(config reflect.Value, index []int, val string) error {
 	return p.Set(val)
 }
 
-func mayTakeValue(config reflect.Type, flag cmdtree.Flag) bool {
-	// Everything except bool-typed fields may take values
-	return config.FieldByIndex(flag.Field).Type != reflect.TypeOf(true)
+func mayTakeValue(config reflect.Value, flag cmdtree.Flag) bool {
+	p, _ := param.New(config.FieldByIndex(flag.Field).Addr().Interface())
+	return param.MayTakeValue(p)
 }
 
-func mustTakeValue(config reflect.Type, flag cmdtree.Flag) bool {
-	// Everything except bool-typed fields and point-typed fields take values
-	return mayTakeValue(config, flag) && config.FieldByIndex(flag.Field).Type.Kind() != reflect.Ptr
+func mustTakeValue(config reflect.Value, flag cmdtree.Flag) bool {
+	p, _ := param.New(config.FieldByIndex(flag.Field).Addr().Interface())
+	return param.MustTakeValue(p)
 }

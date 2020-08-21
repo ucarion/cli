@@ -7,6 +7,28 @@ import (
 	"github.com/ucarion/cli/param"
 )
 
+func TestMayMustTakeValue(t *testing.T) {
+	var v1 bool
+	p1, err := param.New(&v1)
+	assert.NoError(t, err)
+
+	var v2 string
+	p2, err := param.New(&v2)
+	assert.NoError(t, err)
+
+	var v3 *string
+	p3, err := param.New(&v3)
+	assert.NoError(t, err)
+
+	assert.False(t, param.MayTakeValue(p1))
+	assert.True(t, param.MayTakeValue(p2))
+	assert.True(t, param.MayTakeValue(p3))
+
+	assert.False(t, param.MustTakeValue(p1))
+	assert.True(t, param.MustTakeValue(p2))
+	assert.False(t, param.MustTakeValue(p3))
+}
+
 func TestNewNotPointer(t *testing.T) {
 	var v bool
 	_, err := param.New(v)

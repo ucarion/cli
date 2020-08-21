@@ -10,6 +10,17 @@ type Param interface {
 	Set(string) error
 }
 
+func MayTakeValue(p Param) bool {
+	_, ok := p.(boolParam)
+	return !ok
+}
+
+func MustTakeValue(p Param) bool {
+	_, ok1 := p.(boolParam)
+	_, ok2 := p.(ptrParam)
+	return !ok1 && !ok2
+}
+
 func New(v interface{}) (Param, error) {
 	// If the input is already a Param, just return it immediately.
 	if v, ok := v.(Param); ok {
