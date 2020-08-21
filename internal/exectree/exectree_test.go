@@ -34,12 +34,13 @@ func TestExec(t *testing.T) {
 
 	t.Run("flags", func(t *testing.T) {
 		type args struct {
-			A bool    `cli:"-a,--alpha"`
-			B bool    `cli:"-b,--bravo"`
-			C bool    `cli:"-c,--charlie"`
-			X string  `cli:"-x,--x-ray"`
-			Y string  `cli:"-y,--yankee"`
-			Z *string `cli:"-z,--zulu"`
+			A        bool     `cli:"-a,--alpha"`
+			B        bool     `cli:"-b,--bravo"`
+			C        bool     `cli:"-c,--charlie"`
+			X        string   `cli:"-x,--x-ray"`
+			Y        string   `cli:"-y,--yankee"`
+			Z        *string  `cli:"-z,--zulu"`
+			Trailing []string `cli:"...trailing"`
 		}
 
 		testCases := []struct {
@@ -132,6 +133,18 @@ func TestExec(t *testing.T) {
 				In:  []string{"--alpha", "-cxfoo", "-bz", "--yankee", "--bravo"},
 				Out: args{A: true, B: true, C: true, X: "foo", Y: "--bravo", Z: strPointer("")},
 			},
+
+			// a flag taking a value of - or a value ending in -
+			{
+				In:  []string{"--alpha", "-cxfoo-", "-bz", "--yankee", "-"},
+				Out: args{A: true, B: true, C: true, X: "foo-", Y: "-", Z: strPointer("")},
+			},
+
+			// using -- to end flags
+			{
+				In:  []string{"--alpha", "-cxfoo", "--", "-bz", "--yankee", "--bravo"},
+				Out: args{A: true, C: true, X: "foo", Trailing: []string{"-bz", "--yankee", "--bravo"}},
+			},
 		}
 
 		for _, tt := range testCases {
@@ -180,6 +193,22 @@ func TestExec(t *testing.T) {
 			{
 				In:  []string{"a", "b", "c", "d", "e"},
 				Out: args{X: "a", Y: "b", Z: []string{"c", "d", "e"}},
+			},
+			{
+				In:  []string{"--", "a", "b", "c", "d", "e"},
+				Out: args{X: "a", Y: "b", Z: []string{"c", "d", "e"}},
+			},
+			{
+				In:  []string{"a", "b", "c", "--", "d", "e"},
+				Out: args{X: "a", Y: "b", Z: []string{"c", "d", "e"}},
+			},
+			{
+				In:  []string{"a", "b", "c", "d", "e", "--"},
+				Out: args{X: "a", Y: "b", Z: []string{"c", "d", "e"}},
+			},
+			{
+				In:  []string{"--", "--", "a", "b", "c", "d", "e"},
+				Out: args{X: "--", Y: "a", Z: []string{"b", "c", "d", "e"}},
 			},
 		}
 

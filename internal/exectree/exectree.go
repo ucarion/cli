@@ -23,6 +23,31 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 
 		// What kind of argument are we dealing with?
 		switch {
+		case arg == "--":
+			// It's the end-of-flags indicator. All remaining arguments are
+			// strictly positional (or trailing); no subcommands, no flags.
+			// We'll now drain all the remaining args into the positional and
+			// trailing arguments, and that's it.
+			for len(args) > 0 {
+				arg, args = args[0], args[1:]
+
+				if posArgIndex == len(tree.PosArgs) {
+					// We have already used all the positional arguments. So
+					// this argument must go into the trailing set of positional
+					// arguments.
+
+					// TODO handle no trailing posargs in tree
+					if err := setConfigField(config, tree.TrailingArgs.Field, arg); err != nil {
+						return err
+					}
+				} else {
+					if err := setConfigField(config, tree.PosArgs[posArgIndex].Field, arg); err != nil {
+						return err
+					}
+
+					posArgIndex++
+				}
+			}
 		case strings.HasPrefix(arg, "--"):
 			// It's a long flag. It may be either in the stuck form or the
 			// separate form. We can distinguish these cases by seeing if this
@@ -146,7 +171,6 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 
 				posArgIndex++
 			}
-
 		}
 	}
 
