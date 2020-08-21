@@ -59,8 +59,14 @@ func New(funcs []interface{}) (CommandTree, error) {
 	for _, fn := range funcs {
 		// Ensure each of the inputted functions are valid.
 		v := reflect.ValueOf(fn)
-		if err := checkValidFunction(v); err != nil {
-			return CommandTree{}, err
+		if !isValidFunction(v) {
+			// v.Type() will panic if fn is nil, so we return a separate error
+			// in that case:
+			if fn == nil {
+				return CommandTree{}, fmt.Errorf("command funcs must be func(context.Context, T) error, got: %s", fn)
+			}
+
+			return CommandTree{}, fmt.Errorf("command funcs must be func(context.Context, T) error, got: %s", v.Type())
 		}
 
 		config, err := newConfigFromFunc(v)
@@ -145,7 +151,7 @@ func newConfigFromFunc(fn reflect.Value) (config, error) {
 	return c, nil
 }
 
-var ErrMultipleSubcmdTags = errors.New("multiple uses of subcmd tag in struct")
+var errMultipleSubcmdTags = errors.New("multiple uses of subcmd tag in config struct")
 
 func newConfigFromType(t reflect.Type) (config, error) {
 	c := config{
@@ -159,11 +165,10 @@ func newConfigFromType(t reflect.Type) (config, error) {
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
 
-		// TODO assert only one use of the tag in the struct
 		if name, ok := f.Tag.Lookup(TagSubCommand); ok {
 			// Ensure we haven't already seen a use of the tag already.
 			if c.ParentType != nil {
-				return config{}, ErrMultipleSubcmdTags
+				return config{}, errMultipleSubcmdTags
 			}
 
 			c.ParentType = f.Type
@@ -178,16 +183,6 @@ func newConfigFromType(t reflect.Type) (config, error) {
 
 	return c, addParamsFromType(&c, []int{}, t)
 }
-
-type InvalidConfigFieldTypeErr struct {
-	Type reflect.Type
-}
-
-func (e InvalidConfigFieldTypeErr) Error() string {
-	return fmt.Sprintf("bad config field type: %v", e.Type)
-}
-
-var ErrTrailingMustBeSlice = errors.New("trailing args field must be a slice")
 
 func addParamsFromType(c *config, indexPrefix []int, t reflect.Type) error {
 	for i := 0; i < t.NumField(); i++ {
@@ -214,13 +209,13 @@ func addParamsFromType(c *config, indexPrefix []int, t reflect.Type) error {
 		// This field has the cli tag on it. Is it a valid type to use a CLI
 		// field?
 		if err := checkValidFieldType(f.Type); err != nil {
-			return err
+			return fmt.Errorf("%s: %w", f.Name, err)
 		}
 
 		switch {
 		case strings.HasPrefix(cli, "..."):
 			if f.Type.Kind() != reflect.Slice {
-				return ErrTrailingMustBeSlice
+				return fmt.Errorf("%s: trailing args must be a slice", f.Name)
 			}
 
 			c.TrailingArgs = PosArg{Field: index, Name: cli[3:]}
@@ -270,53 +265,9 @@ var (
 )
 
 func checkValidFieldType(t reflect.Type) error {
-	err := InvalidConfigFieldTypeErr{Type: t}
-
-	if t.Kind() == reflect.Ptr {
-		t = t.Elem()
-
-		// Pointers-of-pointers or pointers-of-bool are invalid field types.
-		// Pointers in structs indicate optionally-taking-value types, but it
-		// doesn't make sense to have "twice-optionally" fields, nor does it
-		// make sense to have optionally-taking-value bool fields, since bool
-		// fields never take a value.
-		if t.Kind() == reflect.Bool || t.Kind() == reflect.Ptr {
-			return err
-		}
-	}
-
-	// Slices are permitted only if they contain something that's a valid type.
-	if t.Kind() == reflect.Slice {
-		t = t.Elem()
-	}
-
-	switch t.Kind() {
-	// All of the primitive types are supported directly.
-	case reflect.Bool,
-		reflect.Int,
-		reflect.Int8,
-		reflect.Int16,
-		reflect.Int32,
-		reflect.Int64,
-		reflect.Uint,
-		reflect.Uint8,
-		reflect.Uint16,
-		reflect.Uint32,
-		reflect.Uint64,
-		reflect.Float32,
-		reflect.Float64,
-		reflect.String:
-		return nil
-	case reflect.Struct:
-		// A struct is valid only if it implements Param.
-		if reflect.PtrTo(t).Implements(paramType) {
-			return nil
-		}
-
-		return err
-	default:
-		return err
-	}
+	v := reflect.New(t).Interface()
+	_, err := param.New(v)
+	return err
 }
 
 func newCmd(children map[reflect.Type][]config, root config) CommandTree {
@@ -334,45 +285,36 @@ func newChildCmds(children map[reflect.Type][]config, root reflect.Type) []Child
 	return out
 }
 
-type NotValidFunctionErr struct {
-	Value reflect.Value
-}
-
-func (e NotValidFunctionErr) Error() string {
-	return fmt.Sprintf("bad func - want func(context.Context, T) error, got: %v", e.Value.Type())
-}
-
-func checkValidFunction(v reflect.Value) error {
-	err := NotValidFunctionErr{v}
+func isValidFunction(v reflect.Value) bool {
 	if !v.IsValid() {
-		return err
+		return false
 	}
 
 	t := v.Type()
 
 	if v.Kind() != reflect.Func {
-		return err
+		return false
 	}
 
 	if t.NumIn() != 2 {
-		return err
+		return false
 	}
 
 	if !t.In(0).Implements(ctxType) {
-		return err
+		return false
 	}
 
 	if t.In(1).Kind() != reflect.Struct {
-		return err
+		return false
 	}
 
 	if t.NumOut() != 1 {
-		return err
+		return false
 	}
 
 	if !t.Out(0).Implements(errType) {
-		return err
+		return false
 	}
 
-	return nil
+	return true
 }

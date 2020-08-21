@@ -447,7 +447,7 @@ func TestNew(t *testing.T) {
 		for i, tt := range testCases {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
 				_, err := cmdtree.New([]interface{}{tt})
-				assert.Equal(t, cmdtree.NotValidFunctionErr{reflect.ValueOf(tt)}, err)
+				assert.Contains(t, err.Error(), "command funcs must be func(context.Context, T) error, got: ")
 			})
 		}
 	})
@@ -464,24 +464,10 @@ func TestNew(t *testing.T) {
 			func(_ context.Context, _ subArgs) error { return nil },
 		})
 
-		assert.Equal(t, cmdtree.ErrMultipleSubcmdTags, err)
+		assert.Equal(t, "multiple uses of subcmd tag in config struct", err.Error())
 	})
 
 	t.Run("bad config field type", func(t *testing.T) {
-		t.Run("bool pointer", func(t *testing.T) {
-			type args struct {
-				X *bool `cli:"-x"`
-			}
-
-			_, err := cmdtree.New([]interface{}{
-				func(_ context.Context, _ args) error { return nil },
-			})
-
-			assert.Equal(t, cmdtree.InvalidConfigFieldTypeErr{
-				Type: reflect.TypeOf((*bool)(nil)),
-			}, err)
-		})
-
 		t.Run("string pointer pointer", func(t *testing.T) {
 			type args struct {
 				X **string `cli:"-x"`
@@ -491,9 +477,9 @@ func TestNew(t *testing.T) {
 				func(_ context.Context, _ args) error { return nil },
 			})
 
-			assert.Equal(t, cmdtree.InvalidConfigFieldTypeErr{
-				Type: reflect.TypeOf((**string)(nil)),
-			}, err)
+			assert.Equal(t,
+				"X: unsupported pointer param type: unsupported param type: *string",
+				err.Error())
 		})
 
 		t.Run("channel", func(t *testing.T) {
@@ -505,9 +491,9 @@ func TestNew(t *testing.T) {
 				func(_ context.Context, _ args) error { return nil },
 			})
 
-			assert.Equal(t, cmdtree.InvalidConfigFieldTypeErr{
-				Type: reflect.TypeOf((chan bool)(nil)),
-			}, err)
+			assert.Equal(t,
+				"X: unsupported param type: chan bool",
+				err.Error())
 		})
 
 		t.Run("uintptr", func(t *testing.T) {
@@ -519,9 +505,9 @@ func TestNew(t *testing.T) {
 				func(_ context.Context, _ args) error { return nil },
 			})
 
-			assert.Equal(t, cmdtree.InvalidConfigFieldTypeErr{
-				Type: reflect.TypeOf((uintptr)(0)),
-			}, err)
+			assert.Equal(t,
+				"X: unsupported param type: uintptr",
+				err.Error())
 		})
 
 		t.Run("complex64", func(t *testing.T) {
@@ -533,23 +519,9 @@ func TestNew(t *testing.T) {
 				func(_ context.Context, _ args) error { return nil },
 			})
 
-			assert.Equal(t, cmdtree.InvalidConfigFieldTypeErr{
-				Type: reflect.TypeOf((complex64)(0)),
-			}, err)
-		})
-
-		t.Run("complex128", func(t *testing.T) {
-			type args struct {
-				X complex128 `cli:"-x"`
-			}
-
-			_, err := cmdtree.New([]interface{}{
-				func(_ context.Context, _ args) error { return nil },
-			})
-
-			assert.Equal(t, cmdtree.InvalidConfigFieldTypeErr{
-				Type: reflect.TypeOf((complex128)(0)),
-			}, err)
+			assert.Equal(t,
+				"X: unsupported param type: complex64",
+				err.Error())
 		})
 
 		t.Run("func", func(t *testing.T) {
@@ -561,9 +533,9 @@ func TestNew(t *testing.T) {
 				func(_ context.Context, _ args) error { return nil },
 			})
 
-			assert.Equal(t, cmdtree.InvalidConfigFieldTypeErr{
-				Type: reflect.TypeOf((func())(nil)),
-			}, err)
+			assert.Equal(t,
+				"X: unsupported param type: func()",
+				err.Error())
 		})
 
 		t.Run("map", func(t *testing.T) {
@@ -575,9 +547,9 @@ func TestNew(t *testing.T) {
 				func(_ context.Context, _ args) error { return nil },
 			})
 
-			assert.Equal(t, cmdtree.InvalidConfigFieldTypeErr{
-				Type: reflect.TypeOf((map[bool]bool)(nil)),
-			}, err)
+			assert.Equal(t,
+				"X: unsupported param type: map[bool]bool",
+				err.Error())
 		})
 
 		t.Run("interface", func(t *testing.T) {
@@ -589,9 +561,9 @@ func TestNew(t *testing.T) {
 				func(_ context.Context, _ args) error { return nil },
 			})
 
-			assert.Equal(t, cmdtree.InvalidConfigFieldTypeErr{
-				Type: reflect.TypeOf((*interface{})(nil)).Elem(),
-			}, err)
+			assert.Equal(t,
+				"X: unsupported param type: interface {}",
+				err.Error())
 		})
 
 		t.Run("struct", func(t *testing.T) {
@@ -603,9 +575,9 @@ func TestNew(t *testing.T) {
 				func(_ context.Context, _ args) error { return nil },
 			})
 
-			assert.Equal(t, cmdtree.InvalidConfigFieldTypeErr{
-				Type: reflect.TypeOf(struct{}{}),
-			}, err)
+			assert.Equal(t,
+				"X: unsupported param type: struct {}",
+				err.Error())
 		})
 
 		t.Run("non-slice trailing args", func(t *testing.T) {
@@ -617,7 +589,9 @@ func TestNew(t *testing.T) {
 				func(_ context.Context, _ args) error { return nil },
 			})
 
-			assert.Equal(t, cmdtree.ErrTrailingMustBeSlice, err)
+			assert.Equal(t,
+				"X: trailing args must be a slice",
+				err.Error())
 		})
 	})
 }
