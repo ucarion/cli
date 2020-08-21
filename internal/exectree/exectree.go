@@ -2,6 +2,7 @@ package exectree
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"strings"
 
@@ -14,162 +15,195 @@ func Exec(ctx context.Context, tree cmdtree.CommandTree, args []string) error {
 }
 
 func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, args []string) error {
+	flagsTerminated := false
 	posArgIndex := 0 // index of the next positional argument to assign to
 
 	// Process args until there are no more args.
 	for len(args) > 0 {
-		var arg string // the arg we're processing next
-		arg, args = args[0], args[1:]
+		var arg string                // the arg we're processing next
+		arg, args = args[0], args[1:] // eat one arg from args
 
-		// What kind of argument are we dealing with?
 		switch {
-		case arg == "--":
-			// It's the end-of-flags indicator. All remaining arguments are
-			// strictly positional (or trailing); no subcommands, no flags.
-			// We'll now drain all the remaining args into the positional and
-			// trailing arguments, and that's it.
-			for len(args) > 0 {
-				arg, args = args[0], args[1:]
-
-				if posArgIndex == len(tree.PosArgs) {
-					// We have already used all the positional arguments. So
-					// this argument must go into the trailing set of positional
-					// arguments.
-
-					// TODO handle no trailing posargs in tree
-					if err := setConfigField(config, tree.TrailingArgs.Field, arg); err != nil {
-						return err
-					}
-				} else {
-					if err := setConfigField(config, tree.PosArgs[posArgIndex].Field, arg); err != nil {
-						return err
-					}
-
-					posArgIndex++
-				}
+		case flagsTerminated:
+			// We have previously reached the flag terminator argument ("--").
+			// Regardless of any other context, we know that all remaining args
+			// are positional.
+			var posArg cmdtree.PosArg
+			if posArgIndex == len(tree.PosArgs) {
+				posArg = tree.TrailingArgs
+			} else {
+				posArg = tree.PosArgs[posArgIndex]
+				posArgIndex++
 			}
-		case strings.HasPrefix(arg, "--"):
-			// It's a long flag. It may be either in the stuck form or the
-			// separate form. We can distinguish these cases by seeing if this
-			// arg has an equals sign or not.
-			if strings.Contains(arg, "=") {
-				// The flag is in the stuck form, e.g. "--foo=bar".
-				//
-				// It's valid to do "--foo=bar=baz", in which case the flag is
-				// "foo" and the value is "bar=baz". So we only split off the
-				// first "=".
-				argParts := strings.SplitN(arg, "=", 2)
-				name, value := argParts[0][2:], argParts[1]
 
-				flag, _ := getLongFlag(tree, name) // TODO handle not there
-				if err := setConfigField(config, flag.Field, value); err != nil {
+			if posArg.Field == nil {
+				return fmt.Errorf("unexpected positional argument: %s", arg)
+			}
+
+			if err := setConfigField(config, posArg.Field, arg); err != nil {
+				return err
+			}
+
+		case arg == "--":
+			// This is the flag terminator. We ignore this arg itself, but will
+			// not look for further positional arguments or subcommands going
+			// forward.
+			flagsTerminated = true
+
+		case strings.HasPrefix(arg, "--") && strings.Contains(arg, "="):
+			// This is a long flag in the "stuck" form, e.g. "--foo=bar".
+			//
+			// It's valid to do "--foo=bar=baz", which sets "foo" to "bar=baz".
+			// So we take care to only strip out the first "=" in arg. We also
+			// strip out the leading dashes in "--foo" into "foo".
+			parts := strings.SplitN(arg, "=", 2)
+			name, value := parts[0][2:], parts[1]
+
+			flag, err := getLongFlag(tree, name)
+			if err != nil {
+				return err
+			}
+
+			// The stuck form is illegal for flags that don't take a value. You
+			// can't do "--foo=bar" if "--foo" doesn't take a value.
+			if !mayTakeValue(config, flag) {
+				return fmt.Errorf("option --%s takes no value", name)
+			}
+
+			if err := setConfigField(config, flag.Field, value); err != nil {
+				return err
+			}
+
+		case strings.HasPrefix(arg, "--"):
+			// This is a long flag in the "separate" form, e.g. "--foo bar".
+			//
+			// Here, we strip out the leading dashes in "--foo" into "foo".
+			flag, err := getLongFlag(tree, arg[2:])
+			if err != nil {
+				return err
+			}
+
+			// If the flag doesn't have to take a value, then in the separate
+			// form we just set its value to the empty string. This is the
+			// documented contract for both boolean and optionally-taking-value
+			// flags.
+			if !mustTakeValue(config, flag) {
+				if err := setConfigField(config, flag.Field, ""); err != nil {
 					return err
 				}
-			} else {
-				// The flag either doesn't take a value, or is in the separate
-				// form, e.g. "--foo" or "--foo bar".
-				flag, _ := getLongFlag(tree, arg[2:]) // TODO handle not there
 
-				if mustTakeValue(config, flag) {
-					// The flag takes a value. The next arg must be its value.
-					arg, args = args[0], args[1:] // TODO no next arg
-					if err := setConfigField(config, flag.Field, arg); err != nil {
-						return err
-					}
-				} else {
-					// The flag does not take a value. We just assign the
-					// appropriate field to "true".
-					if err := setConfigField(config, flag.Field, ""); err != nil {
-						return err
-					}
-				}
+				continue
 			}
+
+			// The value needs to be in the next arg. If there isn't a next arg,
+			// that's an error.
+			if len(args) == 0 {
+				return fmt.Errorf("option --%s requires a value", arg[2:])
+			}
+
+			arg, args = args[0], args[1:] // eat an arg from args
+			if err := setConfigField(config, flag.Field, arg); err != nil {
+				return err
+			}
+
 		case strings.HasPrefix(arg, "-"):
 			// It's one or more short flags in a bundle. A "bundle" is a set of
 			// flags like "-abc", which is an alias for "-a -b -c", assuming
 			// "-a" and "-b" are boolean flags that don't take a value.
 			//
 			// Let's now consume the chars in arg one-by-one, to handle each
-			// bundled flag.
-			chars := arg[1:] // strip out the leading "-"
+			// bundled flag. We skip the initial char, which is just a leading
+			// dash.
+			chars := arg[1:]
 			for len(chars) > 0 {
-				var char string
-				char, chars = string(chars[0]), chars[1:]
+				var char string                           // the char we're processing next
+				char, chars = string(chars[0]), chars[1:] // eat a char from chars
 
-				// Try to find the corresponding short flag in the config.
-				flag, _ := getShortFlag(tree, char) // TODO handle not there
+				flag, err := getShortFlag(tree, char)
+				if err != nil {
+					return err
+				}
 
-				// Can the flag take a value?
-				if mayTakeValue(config, flag) {
-					// The flag does take a value. It may take on one of two
-					// forms, which must be handled separately.
-					if len(chars) > 0 {
-						// The flag is in the "stuck" form, e.g. "-ojson". The flag's
-						// value is the rest of the arg following the name of the flag.
-						if err := setConfigField(config, flag.Field, chars); err != nil {
-							return err
-						}
-
-						chars = "" // reset chars so we stop looking for more flags
-					} else {
-						// The flag is either in the "separate" form, e.g. "-o
-						// json", or it doesn't *have* to take a value.
-						if mustTakeValue(config, flag) {
-							// The flag must take a value, so the next arg must
-							// be the flag's value.
-							arg, args = args[0], args[1:] // TODO no next arg
-							if err := setConfigField(config, flag.Field, arg); err != nil {
-								return err
-							}
-						} else {
-							// The flag doesn't have to take a value. In such a
-							// case, the "separate" form isn't applicable, and
-							// the flag was merely "enabled", and not set to a
-							// particular value.
-							if err := setConfigField(config, flag.Field, ""); err != nil {
-								return err
-							}
-						}
+				// Special-case the condition where the flag must take a value
+				// and that value is in the next arg; this is the only case
+				// where we'll need to eat an arg from args.
+				if mustTakeValue(config, flag) && chars == "" {
+					// There is no data left in the arg. The next arg must be
+					// its value. If there isn't a next arg, that's an error.
+					if len(args) == 0 {
+						return fmt.Errorf("option -%s requires a value", char)
 					}
-				} else {
-					// The flag does not take a value. We just assign the
-					// appropriate field to "true".
-					if err := setConfigField(config, flag.Field, ""); err != nil {
+
+					arg, args = args[0], args[1:] // eat an arg from args
+					if err := setConfigField(config, flag.Field, arg); err != nil {
 						return err
 					}
+
+					chars = "" // stop looking through the bundle
+					continue
+				}
+
+				// If the flag can may take a value, then the rest of the arg is
+				// its value.
+				//
+				// Slightly subtle code here: even if chars is empty, this code
+				// is still correct; if chars is empty, then this branch of code
+				// only runs for optionally-taking-value flags (else the
+				// if-block above would have done the job).
+				//
+				// The contract for optionally-taking-value flags is that we set
+				// them to empty-string if the value wasn't provided; that's
+				// precisely what we'll do if chars is empty in this if-block.
+				if mayTakeValue(config, flag) {
+					if err := setConfigField(config, flag.Field, chars); err != nil {
+						return err
+					}
+
+					chars = "" // stop looking through the bundle
+					continue
+				}
+
+				// The flag doesn't take a value. Enable the flag, and keep
+				// scanning the bundle.
+				if err := setConfigField(config, flag.Field, ""); err != nil {
+					return err
 				}
 			}
+
 		default:
-			// This is either a positional argument or a subcommand. It's not
-			// possible for a commmand to have both positional arguments and
-			// sub-commands.
+			// This argument is not a flag. It's either a positional argument or
+			// a subcommand name. We don't need to worry about ambguity between
+			// these cases; either Children is nonempty, or PosArgs/Trailing are
+			// nonempty, but never both.
+			//
+			// Let's try to do the subcommand case first.
 			for _, child := range tree.Children {
 				if child.Name == arg {
 					// This child is our argument. Forward along what we have
-					// already to the child, and that's all we'll do here.
+					// already to the child, and let the child process the
+					// remaining args.
 					childConfig := reflect.New(child.Config).Elem()
 					childConfig.Field(child.ParentConfigField).Set(config)
 					return exec(ctx, childConfig, child.CommandTree, args)
 				}
 			}
 
-			// This is a positional argument. The next positional argument's
-			// value is arg.
+			// This code is the same as the positional argument logic in the
+			// flagsTerminated branch.
+			var posArg cmdtree.PosArg
 			if posArgIndex == len(tree.PosArgs) {
-				// We have already used all the positional arguments. So this
-				// argument must go into the trailing set of positional
-				// arguments.
-
-				// TODO handle no trailing posargs in tree
-				if err := setConfigField(config, tree.TrailingArgs.Field, arg); err != nil {
-					return err
-				}
+				posArg = tree.TrailingArgs
 			} else {
-				if err := setConfigField(config, tree.PosArgs[posArgIndex].Field, arg); err != nil {
-					return err
-				}
-
+				posArg = tree.PosArgs[posArgIndex]
 				posArgIndex++
+			}
+
+			if posArg.Field == nil {
+				return fmt.Errorf("unexpected positional argument: %s", arg)
+			}
+
+			if err := setConfigField(config, posArg.Field, arg); err != nil {
+				return err
 			}
 		}
 	}
@@ -184,28 +218,28 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 	return err.(error)
 }
 
-func getShortFlag(tree cmdtree.CommandTree, s string) (cmdtree.Flag, bool) {
-	for _, f := range tree.Flags {
-		for _, name := range f.ShortNames {
-			if name == s {
-				return f, true
-			}
-		}
-	}
-
-	return cmdtree.Flag{}, false
-}
-
-func getLongFlag(tree cmdtree.CommandTree, s string) (cmdtree.Flag, bool) {
+func getLongFlag(tree cmdtree.CommandTree, s string) (cmdtree.Flag, error) {
 	for _, f := range tree.Flags {
 		for _, name := range f.LongNames {
 			if name == s {
-				return f, true
+				return f, nil
 			}
 		}
 	}
 
-	return cmdtree.Flag{}, false
+	return cmdtree.Flag{}, fmt.Errorf("unknown option: -%s", s)
+}
+
+func getShortFlag(tree cmdtree.CommandTree, s string) (cmdtree.Flag, error) {
+	for _, f := range tree.Flags {
+		for _, name := range f.ShortNames {
+			if name == s {
+				return f, nil
+			}
+		}
+	}
+
+	return cmdtree.Flag{}, fmt.Errorf("unknown option: -%s", s)
 }
 
 func setConfigField(config reflect.Value, index []int, val string) error {
