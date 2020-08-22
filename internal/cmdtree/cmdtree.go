@@ -131,9 +131,12 @@ func New(funcs []interface{}) (CommandTree, error) {
 
 	// We should expect to have exactly one child of the parent type "nil", and
 	// that child is the root command.
-	root := newCmd(children, children[nil][0]) // TODO assert only one root
+	roots := children[nil]
+	if len(roots) != 1 {
+		return CommandTree{}, fmt.Errorf("multiple top-level commands")
+	}
 
-	return root, nil
+	return newCmd(children, roots[0]), nil
 }
 
 type config struct {

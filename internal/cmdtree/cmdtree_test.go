@@ -438,10 +438,12 @@ func TestNew(t *testing.T) {
 			"foo",
 			func() {},
 			func(_ args) {},
+			func(_ string, _ args) {},
 			func(_ context.Context, _ args) {},
 			func(_ args) error { return nil },
 			func(_ context.Context, _ string) error { return nil },
 			func(_ context.Context, _ *args) error { return nil },
+			func(_ context.Context, _ args) string { return "" },
 		}
 
 		for i, tt := range testCases {
@@ -465,6 +467,18 @@ func TestNew(t *testing.T) {
 		})
 
 		assert.Equal(t, "multiple uses of subcmd tag in config struct", err.Error())
+	})
+
+	t.Run("multiple root commands", func(t *testing.T) {
+		type root1Args struct{}
+		type root2Args struct{}
+
+		_, err := cmdtree.New([]interface{}{
+			func(_ context.Context, _ root1Args) error { return nil },
+			func(_ context.Context, _ root2Args) error { return nil },
+		})
+
+		assert.Equal(t, "multiple top-level commands", err.Error())
 	})
 
 	t.Run("bad config field type", func(t *testing.T) {
@@ -591,6 +605,42 @@ func TestNew(t *testing.T) {
 
 			assert.Equal(t,
 				"X: trailing args must be a slice",
+				err.Error())
+		})
+
+		t.Run("bad config field in anonymous field", func(t *testing.T) {
+			type embed struct {
+				X **string `cli:"-x"`
+			}
+
+			type args struct {
+				embed
+			}
+
+			_, err := cmdtree.New([]interface{}{
+				func(_ context.Context, _ args) error { return nil },
+			})
+
+			assert.Equal(t,
+				"X: unsupported pointer param type: unsupported param type: *string",
+				err.Error())
+		})
+
+		t.Run("bad config field in parent type", func(t *testing.T) {
+			type rootArgs struct {
+				X **string `cli:"-x"`
+			}
+
+			type args struct {
+				Root rootArgs `subcmd:"foo"`
+			}
+
+			_, err := cmdtree.New([]interface{}{
+				func(_ context.Context, _ args) error { return nil },
+			})
+
+			assert.Equal(t,
+				"X: unsupported pointer param type: unsupported param type: *string",
 				err.Error())
 		})
 	})
