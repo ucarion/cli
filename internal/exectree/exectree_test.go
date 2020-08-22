@@ -2,6 +2,7 @@ package exectree_test
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -30,6 +31,26 @@ func TestExec(t *testing.T) {
 		ctx := context.TODO()
 		mock.On("1", ctx, args{}).Return(nil)
 		assert.Equal(t, nil, exectree.Exec(ctx, tree, []string{}))
+	})
+
+	t.Run("err from provided func", func(t *testing.T) {
+		var mock mock.Mock
+		defer mock.AssertExpectations(t)
+
+		type args struct{}
+
+		tree, err := cmdtree.New([]interface{}{
+			func(ctx context.Context, args args) error {
+				return mock.Called(ctx, args).Error(0)
+			},
+		})
+
+		assert.NoError(t, err)
+
+		ctx := context.TODO()
+		err = errors.New("dummy round-trip error")
+		mock.On("1", ctx, args{}).Return(err)
+		assert.Equal(t, err, exectree.Exec(ctx, tree, []string{}))
 	})
 
 	t.Run("flags", func(t *testing.T) {
@@ -167,6 +188,94 @@ func TestExec(t *testing.T) {
 		}
 	})
 
+	t.Run("unknown flags", func(t *testing.T) {
+		type args struct{}
+
+		tree, err := cmdtree.New([]interface{}{
+			func(ctx context.Context, args args) error {
+				return nil
+			},
+		})
+
+		assert.NoError(t, err)
+
+		assert.Equal(t, "unknown option: --foo",
+			exectree.Exec(context.TODO(), tree, []string{"--foo"}).Error())
+		assert.Equal(t, "unknown option: --foo",
+			exectree.Exec(context.TODO(), tree, []string{"--foo=bar"}).Error())
+		assert.Equal(t, "unknown option: -f",
+			exectree.Exec(context.TODO(), tree, []string{"-f"}).Error())
+	})
+
+	t.Run("non-value-taking flag given value", func(t *testing.T) {
+		type args struct {
+			Foo bool `cli:"--foo"`
+		}
+
+		tree, err := cmdtree.New([]interface{}{
+			func(ctx context.Context, args args) error {
+				return nil
+			},
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, "option --foo takes no value",
+			exectree.Exec(context.TODO(), tree, []string{"--foo=bar"}).Error())
+	})
+
+	t.Run("value-taking flag not given value", func(t *testing.T) {
+		type args struct {
+			Foo string `cli:"--foo,-f"`
+		}
+
+		tree, err := cmdtree.New([]interface{}{
+			func(ctx context.Context, args args) error {
+				return nil
+			},
+		})
+
+		assert.NoError(t, err)
+
+		assert.Equal(t, "option --foo requires a value",
+			exectree.Exec(context.TODO(), tree, []string{"--foo"}).Error())
+		assert.Equal(t, "option -f requires a value",
+			exectree.Exec(context.TODO(), tree, []string{"-f"}).Error())
+	})
+
+	t.Run("error setting param value", func(t *testing.T) {
+		type args struct {
+			A int       `cli:"--alpha,-a"`
+			B *int      `cli:"-b"`
+			C *errParam `cli:"--charlie"`
+			Z int       `cli:"z"`
+		}
+
+		tree, err := cmdtree.New([]interface{}{
+			func(ctx context.Context, args args) error {
+				return nil
+			},
+		})
+
+		assert.NoError(t, err)
+
+		assert.Equal(t, "strconv.ParseInt: parsing \"X\": invalid syntax",
+			exectree.Exec(context.TODO(), tree, []string{"-aX"}).Error())
+		assert.Equal(t, "strconv.ParseInt: parsing \"X\": invalid syntax",
+			exectree.Exec(context.TODO(), tree, []string{"-a", "X"}).Error())
+		assert.Equal(t, "strconv.ParseInt: parsing \"X\": invalid syntax",
+			exectree.Exec(context.TODO(), tree, []string{"--alpha=X"}).Error())
+		assert.Equal(t, "strconv.ParseInt: parsing \"X\": invalid syntax",
+			exectree.Exec(context.TODO(), tree, []string{"--alpha", "X"}).Error())
+		assert.Equal(t, "strconv.ParseInt: parsing \"X\": invalid syntax",
+			exectree.Exec(context.TODO(), tree, []string{"-bX"}).Error())
+		assert.Equal(t, "dummy errParam err",
+			exectree.Exec(context.TODO(), tree, []string{"--charlie"}).Error())
+		assert.Equal(t, "strconv.ParseInt: parsing \"X\": invalid syntax",
+			exectree.Exec(context.TODO(), tree, []string{"X"}).Error())
+		assert.Equal(t, "strconv.ParseInt: parsing \"X\": invalid syntax",
+			exectree.Exec(context.TODO(), tree, []string{"--", "X"}).Error())
+	})
+
 	t.Run("positional arguments", func(t *testing.T) {
 		type args struct {
 			A bool     `cli:"-a,--alpha"`
@@ -181,7 +290,6 @@ func TestExec(t *testing.T) {
 			Out args
 			Err error
 		}{
-			// no-flags cases
 			{
 				In:  []string{"a", "b"},
 				Out: args{X: "a", Y: "b"},
@@ -230,6 +338,29 @@ func TestExec(t *testing.T) {
 				assert.Equal(t, tt.Err, exectree.Exec(ctx, tree, tt.In))
 			})
 		}
+	})
+
+	t.Run("extra positional args", func(t *testing.T) {
+		type args struct {
+			A bool   `cli:"-a,--alpha"`
+			B string `cli:"-b,--bravo"`
+			X string `cli:"x"`
+			Y string `cli:"y"`
+		}
+
+		tree, err := cmdtree.New([]interface{}{
+			func(ctx context.Context, args args) error {
+				return nil
+			},
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, "unexpected positional argument: c",
+			exectree.Exec(context.TODO(), tree, []string{"a", "b", "c"}).Error())
+
+		assert.NoError(t, err)
+		assert.Equal(t, "unexpected positional argument: c",
+			exectree.Exec(context.TODO(), tree, []string{"a", "b", "--", "c"}).Error())
 	})
 
 	t.Run("subcommands", func(t *testing.T) {
@@ -454,4 +585,10 @@ type customValue struct {
 func (c *customValue) Set(s string) error {
 	c.Value = s
 	return nil
+}
+
+type errParam struct{}
+
+func (p errParam) Set(_ string) error {
+	return errors.New("dummy errParam err")
 }

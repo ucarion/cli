@@ -165,9 +165,9 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 
 				// The flag doesn't take a value. Enable the flag, and keep
 				// scanning the bundle.
-				if err := setConfigField(config, flag.Field, ""); err != nil {
-					return err
-				}
+				//
+				// Setting a boolean flag can't fail.
+				setConfigField(config, flag.Field, "")
 			}
 
 		default:
@@ -227,7 +227,7 @@ func getLongFlag(tree cmdtree.CommandTree, s string) (cmdtree.Flag, error) {
 		}
 	}
 
-	return cmdtree.Flag{}, fmt.Errorf("unknown option: -%s", s)
+	return cmdtree.Flag{}, fmt.Errorf("unknown option: --%s", s)
 }
 
 func getShortFlag(tree cmdtree.CommandTree, s string) (cmdtree.Flag, error) {
