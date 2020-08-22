@@ -39,7 +39,7 @@ type ChildCommand struct {
 	CommandTree
 }
 
-func New(funcs []interface{}) (CommandTree, error) {
+func New(args []string, funcs []interface{}) (CommandTree, error) {
 	// First, we need to discover all nodes in the graph. We'll construct an
 	// index from config types (which must be unique per func) to the one or
 	// zero funcs that use the config type.
@@ -134,6 +134,11 @@ func New(funcs []interface{}) (CommandTree, error) {
 	roots := children[nil]
 	if len(roots) != 1 {
 		return CommandTree{}, fmt.Errorf("multiple top-level commands")
+	}
+
+	// If the root doesn't have a name, attempt to infer one from args.
+	if roots[0].Name == "" && len(args) > 0 {
+		roots[0].Name = args[0]
 	}
 
 	return newCmd(children, roots[0]), nil

@@ -20,7 +20,7 @@ func TestExec(t *testing.T) {
 
 		type args struct{}
 
-		tree, err := cmdtree.New([]interface{}{
+		tree, err := cmdtree.New(nil, []interface{}{
 			func(ctx context.Context, args args) error {
 				return mock.Called(ctx, args).Error(0)
 			},
@@ -39,7 +39,7 @@ func TestExec(t *testing.T) {
 
 		type args struct{}
 
-		tree, err := cmdtree.New([]interface{}{
+		tree, err := cmdtree.New([]string{"xxx"}, []interface{}{
 			func(ctx context.Context, args args) error {
 				return mock.Called(ctx, args).Error(0)
 			},
@@ -50,7 +50,34 @@ func TestExec(t *testing.T) {
 		ctx := context.TODO()
 		err = errors.New("dummy round-trip error")
 		mock.On("1", ctx, args{}).Return(err)
-		assert.Equal(t, err, exectree.Exec(ctx, tree, []string{}))
+		assert.Equal(t, "xxx: dummy round-trip error",
+			exectree.Exec(ctx, tree, []string{}).Error())
+	})
+
+	t.Run("err from provided func in subcmd", func(t *testing.T) {
+		var mock mock.Mock
+		defer mock.AssertExpectations(t)
+
+		type rootArgs struct {
+			_ struct{} `cli:"root"`
+		}
+		type subArgs struct {
+			RootArgs rootArgs `subcmd:"sub"`
+		}
+
+		tree, err := cmdtree.New(nil, []interface{}{
+			func(ctx context.Context, args subArgs) error {
+				return mock.Called(ctx, args).Error(0)
+			},
+		})
+
+		assert.NoError(t, err)
+
+		ctx := context.TODO()
+		err = errors.New("dummy round-trip error")
+		mock.On("1", ctx, subArgs{}).Return(err)
+		assert.Equal(t, "root sub: dummy round-trip error",
+			exectree.Exec(ctx, tree, []string{"sub"}).Error())
 	})
 
 	t.Run("flags", func(t *testing.T) {
@@ -173,7 +200,7 @@ func TestExec(t *testing.T) {
 				var mock mock.Mock
 				defer mock.AssertExpectations(t)
 
-				tree, err := cmdtree.New([]interface{}{
+				tree, err := cmdtree.New(nil, []interface{}{
 					func(ctx context.Context, args args) error {
 						return mock.Called(ctx, args).Error(0)
 					},
@@ -191,7 +218,7 @@ func TestExec(t *testing.T) {
 	t.Run("unknown flags", func(t *testing.T) {
 		type args struct{}
 
-		tree, err := cmdtree.New([]interface{}{
+		tree, err := cmdtree.New(nil, []interface{}{
 			func(ctx context.Context, args args) error {
 				return nil
 			},
@@ -212,7 +239,7 @@ func TestExec(t *testing.T) {
 			Foo bool `cli:"--foo"`
 		}
 
-		tree, err := cmdtree.New([]interface{}{
+		tree, err := cmdtree.New(nil, []interface{}{
 			func(ctx context.Context, args args) error {
 				return nil
 			},
@@ -228,7 +255,7 @@ func TestExec(t *testing.T) {
 			Foo string `cli:"--foo,-f"`
 		}
 
-		tree, err := cmdtree.New([]interface{}{
+		tree, err := cmdtree.New(nil, []interface{}{
 			func(ctx context.Context, args args) error {
 				return nil
 			},
@@ -250,7 +277,7 @@ func TestExec(t *testing.T) {
 			Z int       `cli:"z"`
 		}
 
-		tree, err := cmdtree.New([]interface{}{
+		tree, err := cmdtree.New(nil, []interface{}{
 			func(ctx context.Context, args args) error {
 				return nil
 			},
@@ -325,7 +352,7 @@ func TestExec(t *testing.T) {
 				var mock mock.Mock
 				defer mock.AssertExpectations(t)
 
-				tree, err := cmdtree.New([]interface{}{
+				tree, err := cmdtree.New(nil, []interface{}{
 					func(ctx context.Context, args args) error {
 						return mock.Called(ctx, args).Error(0)
 					},
@@ -348,7 +375,7 @@ func TestExec(t *testing.T) {
 			Y string `cli:"y"`
 		}
 
-		tree, err := cmdtree.New([]interface{}{
+		tree, err := cmdtree.New(nil, []interface{}{
 			func(ctx context.Context, args args) error {
 				return nil
 			},
@@ -402,7 +429,7 @@ func TestExec(t *testing.T) {
 				var mock mock.Mock
 				defer mock.AssertExpectations(t)
 
-				tree, err := cmdtree.New([]interface{}{
+				tree, err := cmdtree.New(nil, []interface{}{
 					func(ctx context.Context, args subArgs) error {
 						return mock.Called(ctx, args).Error(0)
 					},
@@ -556,7 +583,7 @@ func TestExec(t *testing.T) {
 				var mock mock.Mock
 				defer mock.AssertExpectations(t)
 
-				tree, err := cmdtree.New([]interface{}{
+				tree, err := cmdtree.New(nil, []interface{}{
 					func(ctx context.Context, args args) error {
 						return mock.Called(ctx, args).Error(0)
 					},

@@ -20,7 +20,7 @@ func TestNew(t *testing.T) {
 
 		called := false
 		callErr := errors.New("dummy error")
-		tree, err := cmdtree.New([]interface{}{
+		tree, err := cmdtree.New(nil, []interface{}{
 			func(ctx context.Context, a args) error {
 				called = true
 				assert.Equal(t, context.TODO(), ctx)
@@ -49,7 +49,24 @@ func TestNew(t *testing.T) {
 			_ struct{} `cli:"root"`
 		}
 
-		tree, err := cmdtree.New([]interface{}{
+		tree, err := cmdtree.New(nil, []interface{}{
+			func(_ context.Context, _ root) error {
+				return nil
+			},
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, cmdtree.CommandTree{
+			Name:     "root",
+			Config:   reflect.TypeOf(root{}),
+			Children: []cmdtree.ChildCommand{},
+		}, stripFuncs(tree))
+	})
+
+	t.Run("root name inferred from args", func(t *testing.T) {
+		type root struct{}
+
+		tree, err := cmdtree.New([]string{"root"}, []interface{}{
 			func(_ context.Context, _ root) error {
 				return nil
 			},
@@ -91,7 +108,7 @@ func TestNew(t *testing.T) {
 			embed2
 		}
 
-		tree, err := cmdtree.New([]interface{}{
+		tree, err := cmdtree.New(nil, []interface{}{
 			func(_ context.Context, _ root) error {
 				return nil
 			},
@@ -136,7 +153,7 @@ func TestNew(t *testing.T) {
 			Root root `subcmd:"bar"`
 		}
 
-		tree, err := cmdtree.New([]interface{}{
+		tree, err := cmdtree.New(nil, []interface{}{
 			func(_ context.Context, _ foo) error {
 				return nil
 			},
@@ -184,7 +201,7 @@ func TestNew(t *testing.T) {
 			Foo foo `subcmd:"bar"`
 		}
 
-		tree, err := cmdtree.New([]interface{}{
+		tree, err := cmdtree.New(nil, []interface{}{
 			func(_ context.Context, _ bar) error {
 				return nil
 			},
@@ -230,7 +247,7 @@ func TestNew(t *testing.T) {
 			Foo foo `subcmd:"bar"`
 		}
 
-		tree, err := cmdtree.New([]interface{}{
+		tree, err := cmdtree.New(nil, []interface{}{
 			func(_ context.Context, _ foo) error {
 				return nil
 			},
@@ -315,7 +332,7 @@ func TestNew(t *testing.T) {
 			Parent i `subcmd:"j"`
 		}
 
-		tree, err := cmdtree.New([]interface{}{
+		tree, err := cmdtree.New(nil, []interface{}{
 			func(_ context.Context, _ a) error { return nil },
 			func(_ context.Context, _ b) error { return nil },
 			func(_ context.Context, _ c) error { return nil },
@@ -423,7 +440,7 @@ func TestNew(t *testing.T) {
 			OptionalStr   *string       `cli:"--opt-string"`
 		}
 
-		_, err := cmdtree.New([]interface{}{
+		_, err := cmdtree.New(nil, []interface{}{
 			func(_ context.Context, _ args) error { return nil },
 		})
 
@@ -448,7 +465,7 @@ func TestNew(t *testing.T) {
 
 		for i, tt := range testCases {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
-				_, err := cmdtree.New([]interface{}{tt})
+				_, err := cmdtree.New(nil, []interface{}{tt})
 				assert.Contains(t, err.Error(), "command funcs must be func(context.Context, T) error, got: ")
 			})
 		}
@@ -462,7 +479,7 @@ func TestNew(t *testing.T) {
 			Root2 rootArgs `subcmd:"foo"`
 		}
 
-		_, err := cmdtree.New([]interface{}{
+		_, err := cmdtree.New(nil, []interface{}{
 			func(_ context.Context, _ subArgs) error { return nil },
 		})
 
@@ -473,7 +490,7 @@ func TestNew(t *testing.T) {
 		type root1Args struct{}
 		type root2Args struct{}
 
-		_, err := cmdtree.New([]interface{}{
+		_, err := cmdtree.New(nil, []interface{}{
 			func(_ context.Context, _ root1Args) error { return nil },
 			func(_ context.Context, _ root2Args) error { return nil },
 		})
@@ -487,7 +504,7 @@ func TestNew(t *testing.T) {
 				X **string `cli:"-x"`
 			}
 
-			_, err := cmdtree.New([]interface{}{
+			_, err := cmdtree.New(nil, []interface{}{
 				func(_ context.Context, _ args) error { return nil },
 			})
 
@@ -501,7 +518,7 @@ func TestNew(t *testing.T) {
 				X chan bool `cli:"-x"`
 			}
 
-			_, err := cmdtree.New([]interface{}{
+			_, err := cmdtree.New(nil, []interface{}{
 				func(_ context.Context, _ args) error { return nil },
 			})
 
@@ -515,7 +532,7 @@ func TestNew(t *testing.T) {
 				X uintptr `cli:"-x"`
 			}
 
-			_, err := cmdtree.New([]interface{}{
+			_, err := cmdtree.New(nil, []interface{}{
 				func(_ context.Context, _ args) error { return nil },
 			})
 
@@ -529,7 +546,7 @@ func TestNew(t *testing.T) {
 				X complex64 `cli:"-x"`
 			}
 
-			_, err := cmdtree.New([]interface{}{
+			_, err := cmdtree.New(nil, []interface{}{
 				func(_ context.Context, _ args) error { return nil },
 			})
 
@@ -543,7 +560,7 @@ func TestNew(t *testing.T) {
 				X func() `cli:"-x"`
 			}
 
-			_, err := cmdtree.New([]interface{}{
+			_, err := cmdtree.New(nil, []interface{}{
 				func(_ context.Context, _ args) error { return nil },
 			})
 
@@ -557,7 +574,7 @@ func TestNew(t *testing.T) {
 				X map[bool]bool `cli:"-x"`
 			}
 
-			_, err := cmdtree.New([]interface{}{
+			_, err := cmdtree.New(nil, []interface{}{
 				func(_ context.Context, _ args) error { return nil },
 			})
 
@@ -571,7 +588,7 @@ func TestNew(t *testing.T) {
 				X interface{} `cli:"-x"`
 			}
 
-			_, err := cmdtree.New([]interface{}{
+			_, err := cmdtree.New(nil, []interface{}{
 				func(_ context.Context, _ args) error { return nil },
 			})
 
@@ -585,7 +602,7 @@ func TestNew(t *testing.T) {
 				X struct{} `cli:"-x"`
 			}
 
-			_, err := cmdtree.New([]interface{}{
+			_, err := cmdtree.New(nil, []interface{}{
 				func(_ context.Context, _ args) error { return nil },
 			})
 
@@ -599,7 +616,7 @@ func TestNew(t *testing.T) {
 				X string `cli:"...x"`
 			}
 
-			_, err := cmdtree.New([]interface{}{
+			_, err := cmdtree.New(nil, []interface{}{
 				func(_ context.Context, _ args) error { return nil },
 			})
 
@@ -617,7 +634,7 @@ func TestNew(t *testing.T) {
 				embed
 			}
 
-			_, err := cmdtree.New([]interface{}{
+			_, err := cmdtree.New(nil, []interface{}{
 				func(_ context.Context, _ args) error { return nil },
 			})
 
@@ -635,7 +652,7 @@ func TestNew(t *testing.T) {
 				Root rootArgs `subcmd:"foo"`
 			}
 
-			_, err := cmdtree.New([]interface{}{
+			_, err := cmdtree.New(nil, []interface{}{
 				func(_ context.Context, _ args) error { return nil },
 			})
 

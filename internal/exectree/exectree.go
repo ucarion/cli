@@ -11,10 +11,11 @@ import (
 )
 
 func Exec(ctx context.Context, tree cmdtree.CommandTree, args []string) error {
-	return exec(ctx, reflect.New(tree.Config).Elem(), tree, args)
+	name := tree.Name
+	return exec(ctx, reflect.New(tree.Config).Elem(), tree, name, args)
 }
 
-func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, args []string) error {
+func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, name string, args []string) error {
 	flagsTerminated := false
 	posArgIndex := 0 // index of the next positional argument to assign to
 
@@ -185,7 +186,10 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 					// remaining args.
 					childConfig := reflect.New(child.Config).Elem()
 					childConfig.Field(child.ParentConfigField).Set(config)
-					return exec(ctx, childConfig, child.CommandTree, args)
+
+					childName := name + " " + child.Name
+
+					return exec(ctx, childConfig, child.CommandTree, childName, args)
 				}
 			}
 
@@ -216,7 +220,7 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 		return nil
 	}
 
-	return err.(error)
+	return fmt.Errorf("%s: %w", name, err.(error))
 }
 
 func getLongFlag(tree cmdtree.CommandTree, s string) (cmdtree.Flag, error) {
