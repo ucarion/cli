@@ -258,21 +258,21 @@ func TestExec(t *testing.T) {
 
 		assert.NoError(t, err)
 
-		assert.Equal(t, "strconv.ParseInt: parsing \"X\": invalid syntax",
+		assert.Equal(t, "-a: strconv.ParseInt: parsing \"X\": invalid syntax",
 			exectree.Exec(context.TODO(), tree, []string{"-aX"}).Error())
-		assert.Equal(t, "strconv.ParseInt: parsing \"X\": invalid syntax",
+		assert.Equal(t, "-a: strconv.ParseInt: parsing \"X\": invalid syntax",
 			exectree.Exec(context.TODO(), tree, []string{"-a", "X"}).Error())
-		assert.Equal(t, "strconv.ParseInt: parsing \"X\": invalid syntax",
+		assert.Equal(t, "--alpha: strconv.ParseInt: parsing \"X\": invalid syntax",
 			exectree.Exec(context.TODO(), tree, []string{"--alpha=X"}).Error())
-		assert.Equal(t, "strconv.ParseInt: parsing \"X\": invalid syntax",
+		assert.Equal(t, "--alpha: strconv.ParseInt: parsing \"X\": invalid syntax",
 			exectree.Exec(context.TODO(), tree, []string{"--alpha", "X"}).Error())
-		assert.Equal(t, "strconv.ParseInt: parsing \"X\": invalid syntax",
+		assert.Equal(t, "-b: strconv.ParseInt: parsing \"X\": invalid syntax",
 			exectree.Exec(context.TODO(), tree, []string{"-bX"}).Error())
-		assert.Equal(t, "dummy errParam err",
+		assert.Equal(t, "--charlie: dummy errParam err",
 			exectree.Exec(context.TODO(), tree, []string{"--charlie"}).Error())
-		assert.Equal(t, "strconv.ParseInt: parsing \"X\": invalid syntax",
+		assert.Equal(t, "z: strconv.ParseInt: parsing \"X\": invalid syntax",
 			exectree.Exec(context.TODO(), tree, []string{"X"}).Error())
-		assert.Equal(t, "strconv.ParseInt: parsing \"X\": invalid syntax",
+		assert.Equal(t, "z: strconv.ParseInt: parsing \"X\": invalid syntax",
 			exectree.Exec(context.TODO(), tree, []string{"--", "X"}).Error())
 	})
 

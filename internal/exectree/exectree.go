@@ -41,7 +41,7 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 			}
 
 			if err := setConfigField(config, posArg.Field, arg); err != nil {
-				return err
+				return fmt.Errorf("%s: %w", posArg.Name, err)
 			}
 
 		case arg == "--":
@@ -71,7 +71,7 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 			}
 
 			if err := setConfigField(config, flag.Field, value); err != nil {
-				return err
+				return fmt.Errorf("--%s: %w", name, err)
 			}
 
 		case strings.HasPrefix(arg, "--"):
@@ -89,7 +89,7 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 			// flags.
 			if !mustTakeValue(config, flag) {
 				if err := setConfigField(config, flag.Field, ""); err != nil {
-					return err
+					return fmt.Errorf("--%s: %w", arg[2:], err)
 				}
 
 				continue
@@ -101,9 +101,10 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 				return fmt.Errorf("option --%s requires a value", arg[2:])
 			}
 
+			name := arg[2:]               // for error reporting
 			arg, args = args[0], args[1:] // eat an arg from args
 			if err := setConfigField(config, flag.Field, arg); err != nil {
-				return err
+				return fmt.Errorf("--%s: %w", name, err)
 			}
 
 		case strings.HasPrefix(arg, "-"):
@@ -136,7 +137,7 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 
 					arg, args = args[0], args[1:] // eat an arg from args
 					if err := setConfigField(config, flag.Field, arg); err != nil {
-						return err
+						return fmt.Errorf("-%s: %w", char, err)
 					}
 
 					chars = "" // stop looking through the bundle
@@ -156,7 +157,7 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 				// precisely what we'll do if chars is empty in this if-block.
 				if mayTakeValue(config, flag) {
 					if err := setConfigField(config, flag.Field, chars); err != nil {
-						return err
+						return fmt.Errorf("-%s: %w", char, err)
 					}
 
 					chars = "" // stop looking through the bundle
@@ -203,7 +204,7 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, a
 			}
 
 			if err := setConfigField(config, posArg.Field, arg); err != nil {
-				return err
+				return fmt.Errorf("%s: %w", posArg.Name, err)
 			}
 		}
 	}
