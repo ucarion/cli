@@ -1,9 +1,12 @@
 package command
 
 import (
+	"context"
+	"fmt"
 	"reflect"
 
 	"github.com/ucarion/cli/internal/tagparse"
+	"github.com/ucarion/cli/param"
 )
 
 type Command struct {
@@ -47,7 +50,55 @@ type extendedDescription interface {
 const extendedUsagePrefix = "ExtendedUsage_"
 
 func FromFunc(fn interface{}) (Command, ParentInfo, error) {
-	return Command{}, ParentInfo{}, nil
+	t := reflect.TypeOf(fn)
+
+	if err := checkValidFunc(t); err != nil {
+		return Command{}, ParentInfo{}, err
+	}
+
+	cmd, pinfo, err := FromType(t.In(1))
+	cmd.Func = reflect.ValueOf(fn)
+	return cmd, pinfo, err
+}
+
+var (
+	paramType = reflect.TypeOf((*param.Param)(nil)).Elem()
+	ctxType   = reflect.TypeOf((*context.Context)(nil)).Elem()
+	errType   = reflect.TypeOf((*error)(nil)).Elem()
+)
+
+func checkValidFunc(t reflect.Type) error {
+	err := fmt.Errorf("command funcs must have type: func(context.Context, T) error, got: %v", t)
+
+	if t == nil {
+		return err
+	}
+
+	if t.Kind() != reflect.Func {
+		return err
+	}
+
+	if t.NumIn() != 2 {
+		return err
+	}
+
+	if !t.In(0).Implements(ctxType) {
+		return err
+	}
+
+	if t.In(1).Kind() != reflect.Struct {
+		return err
+	}
+
+	if t.NumOut() != 1 {
+		return err
+	}
+
+	if !t.Out(0).Implements(errType) {
+		return err
+	}
+
+	return nil
 }
 
 func FromType(t reflect.Type) (Command, ParentInfo, error) {
@@ -103,6 +154,11 @@ func addParams(cmd *Command, index []int, t reflect.Type) error {
 
 		switch tag.Kind {
 		case tagparse.KindFlag:
+			// Ensure the field is a valid param.
+			if _, err := param.New(reflect.New(f.Type).Interface()); err != nil {
+				return fmt.Errorf("%v: %w", f.Name, err)
+			}
+
 			var extendedUsage string
 			if m, ok := t.MethodByName(extendedUsagePrefix + f.Name); ok {
 				// Ensure the method has the right signature: it takes in a
@@ -122,6 +178,11 @@ func addParams(cmd *Command, index []int, t reflect.Type) error {
 				FieldIndex:    append(index, i),
 			})
 		case tagparse.KindPosArg:
+			// Ensure the field is a valid param.
+			if _, err := param.New(reflect.New(f.Type).Interface()); err != nil {
+				return fmt.Errorf("%v: %w", f.Name, err)
+			}
+
 			posArg := PosArg{
 				Name:       tag.PosArgName,
 				FieldIndex: append(index, i),

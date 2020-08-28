@@ -1,12 +1,56 @@
 package command_test
 
 import (
+	"context"
+	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/ucarion/cli/internal/command"
 )
+
+func TestFromFunc(t *testing.T) {
+	type args struct{}
+
+	called := false
+	cmd, pinfo, err := command.FromFunc(func(_ context.Context, _ args) error {
+		called = true
+		return nil
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, command.ParentInfo{}, pinfo)
+
+	cmd.Func.Call([]reflect.Value{reflect.ValueOf(context.TODO()), reflect.ValueOf(args{})})
+	assert.True(t, called)
+}
+
+func TestFromFunc_BadSignature(t *testing.T) {
+	type args struct{}
+
+	testCases := []interface{}{
+		nil,
+		"foo",
+		func() {},
+		func(_ context.Context) error { return nil },
+		func(_ context.Context, _ string) error { return nil },
+		func(_ string, _ args) error { return nil },
+		func(_ context.Context, _ args, _ string) error { return nil },
+		func(_ context.Context, _ args) {},
+		func(_ context.Context, _ args) string { return "" },
+	}
+
+	for _, tt := range testCases {
+		t.Run(fmt.Sprintf("%v", tt), func(t *testing.T) {
+			_, _, err := command.FromFunc(tt)
+			assert.True(t, strings.HasPrefix(
+				err.Error(),
+				"command funcs must have type: func(context.Context, T) error, got: "))
+		})
+	}
+}
 
 func TestFromType_Empty(t *testing.T) {
 	type args struct{}
@@ -197,4 +241,128 @@ func TestFromType_Methods(t *testing.T) {
 		},
 	}, cmd)
 	assert.Equal(t, command.ParentInfo{}, pinfo)
+}
+
+func TestFromType_StringPtrPtr(t *testing.T) {
+	type args struct {
+		X **string `cli:"-x"`
+	}
+
+	_, _, err := command.FromType(reflect.TypeOf(args{}))
+
+	assert.Equal(t,
+		"X: unsupported pointer param type: unsupported param type: *string",
+		err.Error())
+}
+
+func TestFromType_Chan(t *testing.T) {
+	type args struct {
+		X chan bool `cli:"-x"`
+	}
+
+	_, _, err := command.FromType(reflect.TypeOf(args{}))
+
+	assert.Equal(t,
+		"X: unsupported param type: chan bool",
+		err.Error())
+}
+
+func TestFromType_Uintptr(t *testing.T) {
+	type args struct {
+		X uintptr `cli:"-x"`
+	}
+
+	_, _, err := command.FromType(reflect.TypeOf(args{}))
+
+	assert.Equal(t,
+		"X: unsupported param type: uintptr",
+		err.Error())
+}
+
+func TestFromType_Complex64(t *testing.T) {
+	type args struct {
+		X complex64 `cli:"-x"`
+	}
+
+	_, _, err := command.FromType(reflect.TypeOf(args{}))
+
+	assert.Equal(t,
+		"X: unsupported param type: complex64",
+		err.Error())
+}
+
+func TestFromType_Func(t *testing.T) {
+	type args struct {
+		X func() `cli:"-x"`
+	}
+
+	_, _, err := command.FromType(reflect.TypeOf(args{}))
+
+	assert.Equal(t,
+		"X: unsupported param type: func()",
+		err.Error())
+}
+
+func TestFromType_Map(t *testing.T) {
+	type args struct {
+		X map[bool]bool `cli:"-x"`
+	}
+
+	_, _, err := command.FromType(reflect.TypeOf(args{}))
+
+	assert.Equal(t,
+		"X: unsupported param type: map[bool]bool",
+		err.Error())
+}
+
+func TestFromType_Interface(t *testing.T) {
+	type args struct {
+		X interface{} `cli:"-x"`
+	}
+
+	_, _, err := command.FromType(reflect.TypeOf(args{}))
+
+	assert.Equal(t,
+		"X: unsupported param type: interface {}",
+		err.Error())
+}
+
+func TestFromType_Struct(t *testing.T) {
+	type args struct {
+		X struct{} `cli:"-x"`
+	}
+
+	_, _, err := command.FromType(reflect.TypeOf(args{}))
+
+	assert.Equal(t,
+		"X: unsupported param type: struct {}",
+		err.Error())
+}
+
+func TestFromType_BadPosArgType(t *testing.T) {
+	type args struct {
+		X **string `cli:"x"`
+	}
+
+	_, _, err := command.FromType(reflect.TypeOf(args{}))
+
+	assert.Equal(t,
+		"X: unsupported pointer param type: unsupported param type: *string",
+		err.Error())
+}
+
+func TestFromType_BadEmbedType(t *testing.T) {
+	type embed struct {
+		X **string `cli:"-x"`
+	}
+
+	type args struct {
+		embed
+	}
+
+	_, _, err := command.FromType(reflect.TypeOf(args{}))
+
+	assert.Equal(t,
+		"X: unsupported pointer param type: unsupported param type: *string",
+		err.Error())
 }
