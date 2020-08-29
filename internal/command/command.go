@@ -25,6 +25,7 @@ type Flag struct {
 	Usage         string
 	ExtendedUsage string
 	ValueName     string
+	IsHelp        bool
 	FieldIndex    []int
 }
 
@@ -132,7 +133,13 @@ func FromType(t reflect.Type) (Command, ParentInfo, error) {
 		cmd.ExtendedDescription = v.ExtendedDescription()
 	}
 
-	return cmd, pinfo, addParams(&cmd, nil, t)
+	if err := addParams(&cmd, nil, t); err != nil {
+		return Command{}, ParentInfo{}, err
+	}
+
+	addHelpFlag(&cmd)
+
+	return cmd, pinfo, nil
 }
 
 func addParams(cmd *Command, index []int, t reflect.Type) error {
@@ -197,4 +204,37 @@ func addParams(cmd *Command, index []int, t reflect.Type) error {
 	}
 
 	return nil
+}
+
+const (
+	shortHelp         = "h"
+	longHelp          = "help"
+	helpUsage         = "display this help and exit"
+	helpExtendedUsage = "Display help message and exit."
+)
+
+func addHelpFlag(cmd *Command) {
+	helpFlag := Flag{
+		IsHelp:        true,
+		ShortName:     shortHelp,
+		LongName:      longHelp,
+		Usage:         helpUsage,
+		ExtendedUsage: helpExtendedUsage,
+	}
+
+	for _, f := range cmd.Flags {
+		if f.ShortName == shortHelp {
+			helpFlag.ShortName = ""
+		}
+
+		if f.LongName == longHelp {
+			helpFlag.LongName = ""
+		}
+	}
+
+	if helpFlag.ShortName == "" && helpFlag.LongName == "" {
+		return
+	}
+
+	cmd.Flags = append(cmd.Flags, helpFlag)
 }

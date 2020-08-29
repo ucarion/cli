@@ -11,6 +11,14 @@ import (
 	"github.com/ucarion/cli/internal/command"
 )
 
+var helpFlag = command.Flag{
+	IsHelp:        true,
+	ShortName:     "h",
+	LongName:      "help",
+	Usage:         "display this help and exit",
+	ExtendedUsage: "Display help message and exit.",
+}
+
 func TestFromFunc(t *testing.T) {
 	type args struct{}
 
@@ -59,6 +67,65 @@ func TestFromType_Empty(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, command.Command{
 		Config: reflect.TypeOf(args{}),
+		Flags:  []command.Flag{helpFlag},
+	}, cmd)
+	assert.Equal(t, command.ParentInfo{}, pinfo)
+}
+
+func TestFromType_ExistingShortHelp(t *testing.T) {
+	type args struct {
+		H string `cli:"-h"`
+	}
+
+	help := helpFlag
+	help.ShortName = ""
+
+	cmd, pinfo, err := command.FromType(reflect.TypeOf(args{}))
+	assert.NoError(t, err)
+	assert.Equal(t, command.Command{
+		Config: reflect.TypeOf(args{}),
+		Flags: []command.Flag{
+			command.Flag{ShortName: "h", FieldIndex: []int{0}},
+			help,
+		},
+	}, cmd)
+	assert.Equal(t, command.ParentInfo{}, pinfo)
+}
+
+func TestFromType_ExistingLongHelp(t *testing.T) {
+	type args struct {
+		H string `cli:"--help"`
+	}
+
+	help := helpFlag
+	help.LongName = ""
+
+	cmd, pinfo, err := command.FromType(reflect.TypeOf(args{}))
+	assert.NoError(t, err)
+	assert.Equal(t, command.Command{
+		Config: reflect.TypeOf(args{}),
+		Flags: []command.Flag{
+			command.Flag{LongName: "help", FieldIndex: []int{0}},
+			help,
+		},
+	}, cmd)
+	assert.Equal(t, command.ParentInfo{}, pinfo)
+}
+
+func TestFromType_ExistingShortAndLongHelp(t *testing.T) {
+	type args struct {
+		H1 string `cli:"--help"`
+		H2 string `cli:"-h"`
+	}
+
+	cmd, pinfo, err := command.FromType(reflect.TypeOf(args{}))
+	assert.NoError(t, err)
+	assert.Equal(t, command.Command{
+		Config: reflect.TypeOf(args{}),
+		Flags: []command.Flag{
+			command.Flag{LongName: "help", FieldIndex: []int{0}},
+			command.Flag{ShortName: "h", FieldIndex: []int{1}},
+		},
 	}, cmd)
 	assert.Equal(t, command.ParentInfo{}, pinfo)
 }
@@ -72,10 +139,14 @@ func TestFromType_Subcmd(t *testing.T) {
 	}
 
 	cmd, pinfo, err := command.FromType(reflect.TypeOf(args{}))
+
 	assert.NoError(t, err)
+
 	assert.Equal(t, command.Command{
 		Config: reflect.TypeOf(args{}),
+		Flags:  []command.Flag{helpFlag},
 	}, cmd)
+
 	assert.Equal(t, command.ParentInfo{
 		ChildName:          "foo",
 		ParentType:         reflect.TypeOf(parentArgs{}),
@@ -99,6 +170,7 @@ func TestFromType_Flags(t *testing.T) {
 			command.Flag{ShortName: "a", FieldIndex: []int{0}},
 			command.Flag{LongName: "bravo", FieldIndex: []int{1}},
 			command.Flag{ShortName: "d", LongName: "delta", FieldIndex: []int{3}},
+			helpFlag,
 		},
 	}, cmd)
 	assert.Equal(t, command.ParentInfo{}, pinfo)
@@ -134,6 +206,7 @@ func TestFromType_EmbeddedFlags(t *testing.T) {
 			command.Flag{ShortName: "e", FieldIndex: []int{4, 0}},
 			command.Flag{ShortName: "f", FieldIndex: []int{4, 1, 0}},
 			command.Flag{ShortName: "g", FieldIndex: []int{4, 2}},
+			helpFlag,
 		},
 	}, cmd)
 	assert.Equal(t, command.ParentInfo{}, pinfo)
@@ -155,6 +228,7 @@ func TestFromType_PosArgs(t *testing.T) {
 			command.PosArg{Name: "a", FieldIndex: []int{0}},
 			command.PosArg{Name: "d", FieldIndex: []int{3}},
 		},
+		Flags:    []command.Flag{helpFlag},
 		Trailing: command.PosArg{Name: "b", FieldIndex: []int{1}},
 	}, cmd)
 	assert.Equal(t, command.ParentInfo{}, pinfo)
@@ -190,6 +264,7 @@ func TestFromType_EmbeddedPosArgs(t *testing.T) {
 			command.PosArg{Name: "e", FieldIndex: []int{4, 0}},
 			command.PosArg{Name: "g", FieldIndex: []int{4, 2}},
 		},
+		Flags:    []command.Flag{helpFlag},
 		Trailing: command.PosArg{Name: "f", FieldIndex: []int{4, 1, 0}},
 	}, cmd)
 	assert.Equal(t, command.ParentInfo{}, pinfo)
@@ -239,6 +314,7 @@ func TestFromType_UsageAndValueTag(t *testing.T) {
 		Config: reflect.TypeOf(args{}),
 		Flags: []command.Flag{
 			command.Flag{ShortName: "a", Usage: "xxx", ValueName: "yyy", FieldIndex: []int{0}},
+			helpFlag,
 		},
 	}, cmd)
 	assert.Equal(t, command.ParentInfo{}, pinfo)
@@ -271,6 +347,7 @@ func TestFromType_Methods(t *testing.T) {
 		Flags: []command.Flag{
 			command.Flag{ShortName: "a", ExtendedUsage: "baz", FieldIndex: []int{0}},
 			command.Flag{ShortName: "b", FieldIndex: []int{1}},
+			helpFlag,
 		},
 	}, cmd)
 	assert.Equal(t, command.ParentInfo{}, pinfo)

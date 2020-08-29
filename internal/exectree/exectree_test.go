@@ -1,12 +1,14 @@
 package exectree_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/ucarion/cli/internal/cmdhelp"
 	"github.com/ucarion/cli/internal/cmdtree"
 	"github.com/ucarion/cli/internal/exectree"
 )
@@ -41,6 +43,81 @@ func TestExec_FuncError(t *testing.T) {
 	assert.Equal(t,
 		"a: dummy err",
 		exectree.Exec(context.Background(), tree, []string{"a"}).Error())
+}
+
+func TestExec_ShortHelp(t *testing.T) {
+	type rootArgs struct{}
+
+	called := false
+	tree, err := cmdtree.New([]interface{}{
+		func(_ context.Context, args rootArgs) error {
+			called = true
+			return nil
+		},
+	})
+
+	initialHelpOut := exectree.HelpWriter
+	var helpBuf bytes.Buffer
+	exectree.HelpWriter = &helpBuf
+	defer func() {
+		exectree.HelpWriter = initialHelpOut
+	}()
+
+	assert.NoError(t, err)
+	assert.NoError(t, exectree.Exec(context.Background(), tree, []string{"./cmd", "-h"}))
+	assert.False(t, called)
+	assert.Equal(t, cmdhelp.Help(tree, []string{"./cmd"}), helpBuf.String())
+}
+
+func TestExec_LongHelp(t *testing.T) {
+	type rootArgs struct{}
+
+	called := false
+	tree, err := cmdtree.New([]interface{}{
+		func(_ context.Context, args rootArgs) error {
+			called = true
+			return nil
+		},
+	})
+
+	initialHelpOut := exectree.HelpWriter
+	var helpBuf bytes.Buffer
+	exectree.HelpWriter = &helpBuf
+	defer func() {
+		exectree.HelpWriter = initialHelpOut
+	}()
+
+	assert.NoError(t, err)
+	assert.NoError(t, exectree.Exec(context.Background(), tree, []string{"./cmd", "--help"}))
+	assert.False(t, called)
+	assert.Equal(t, cmdhelp.Help(tree, []string{"./cmd"}), helpBuf.String())
+}
+
+func TestExec_SubcmdHelp(t *testing.T) {
+	type rootArgs struct{}
+	type subArgs struct {
+		Root rootArgs `cli:"sub,subcmd"`
+	}
+
+	called := false
+	tree, err := cmdtree.New([]interface{}{
+		func(_ context.Context, args subArgs) error {
+			called = true
+			return nil
+		},
+	})
+
+	initialHelpOut := exectree.HelpWriter
+	var helpBuf bytes.Buffer
+	exectree.HelpWriter = &helpBuf
+	defer func() {
+		exectree.HelpWriter = initialHelpOut
+	}()
+
+	assert.NoError(t, err)
+	assert.NoError(t, exectree.Exec(context.Background(), tree, []string{"cmd", "sub", "--help"}))
+	assert.False(t, called)
+	assert.Equal(t, cmdhelp.Help(tree, []string{"cmd", "sub"}), helpBuf.String())
 }
 
 func TestExec_SubcmdFuncError(t *testing.T) {

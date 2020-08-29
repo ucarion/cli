@@ -3,19 +3,26 @@ package exectree
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"reflect"
 	"strings"
+
+	"github.com/ucarion/cli/internal/cmdhelp"
 
 	"github.com/ucarion/cli/internal/cmdtree"
 	"github.com/ucarion/cli/internal/command"
 	"github.com/ucarion/cli/param"
 )
 
+var HelpWriter io.Writer = os.Stdout
+
 func Exec(ctx context.Context, tree cmdtree.CommandTree, args []string) error {
 	return exec(ctx, reflect.New(tree.Config).Elem(), tree, args[:1], args[1:])
 }
 
 func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, name []string, args []string) error {
+	showHelp := false // whether an IsHelp flag was set
 	flagsTerminated := false
 	posArgIndex := 0 // index of the next positional argument to assign to
 
@@ -89,6 +96,11 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, n
 			// documented contract for both boolean and optionally-taking-value
 			// flags.
 			if !mustTakeValue(config, flag) {
+				if flag.IsHelp {
+					showHelp = true
+					continue
+				}
+
 				if err := setConfigField(config, flag.FieldIndex, ""); err != nil {
 					return fmt.Errorf("--%s: %w", arg[2:], err)
 				}
@@ -165,6 +177,11 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, n
 					continue
 				}
 
+				if flag.IsHelp {
+					showHelp = true
+					continue
+				}
+
 				// The flag doesn't take a value. Enable the flag, and keep
 				// scanning the bundle.
 				//
@@ -210,6 +227,11 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, n
 		}
 	}
 
+	if showHelp {
+		_, err := HelpWriter.Write([]byte(cmdhelp.Help(tree, name)))
+		return err
+	}
+
 	out := tree.Func.Call([]reflect.Value{reflect.ValueOf(ctx), config})
 
 	err := out[0].Interface()
@@ -247,11 +269,19 @@ func setConfigField(config reflect.Value, index []int, val string) error {
 }
 
 func mayTakeValue(config reflect.Value, flag command.Flag) bool {
+	if flag.IsHelp {
+		return false
+	}
+
 	p, _ := param.New(config.FieldByIndex(flag.FieldIndex).Addr().Interface())
 	return param.MayTakeValue(p)
 }
 
 func mustTakeValue(config reflect.Value, flag command.Flag) bool {
+	if flag.IsHelp {
+		return false
+	}
+
 	p, _ := param.New(config.FieldByIndex(flag.FieldIndex).Addr().Interface())
 	return param.MustTakeValue(p)
 }

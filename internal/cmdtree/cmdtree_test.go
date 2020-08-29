@@ -10,6 +10,14 @@ import (
 	"github.com/ucarion/cli/internal/command"
 )
 
+var helpFlag = command.Flag{
+	IsHelp:        true,
+	ShortName:     "h",
+	LongName:      "help",
+	Usage:         "display this help and exit",
+	ExtendedUsage: "Display help message and exit.",
+}
+
 func TestNew_Basic(t *testing.T) {
 	type args struct{}
 
@@ -21,6 +29,7 @@ func TestNew_Basic(t *testing.T) {
 	assert.Equal(t, cmdtree.CommandTree{
 		Command: command.Command{
 			Config: reflect.TypeOf(args{}),
+			Flags:  []command.Flag{helpFlag},
 		},
 	}, removeFunc(tree))
 }
@@ -68,12 +77,14 @@ func TestNew_RootAndSub(t *testing.T) {
 	assert.Equal(t, cmdtree.CommandTree{
 		Command: command.Command{
 			Config: reflect.TypeOf(root{}),
+			Flags:  []command.Flag{helpFlag},
 		},
 		Children: map[string]cmdtree.ChildCommand{
 			"sub": cmdtree.ChildCommand{
 				CommandTree: cmdtree.CommandTree{
 					Command: command.Command{
 						Config: reflect.TypeOf(sub{}),
+						Flags:  []command.Flag{helpFlag},
 					},
 				},
 			},
@@ -101,12 +112,14 @@ func TestNew_TwoSubcommands(t *testing.T) {
 	assert.Equal(t, cmdtree.CommandTree{
 		Command: command.Command{
 			Config: reflect.TypeOf(root{}),
+			Flags:  []command.Flag{helpFlag},
 		},
 		Children: map[string]cmdtree.ChildCommand{
 			"foo": cmdtree.ChildCommand{
 				CommandTree: cmdtree.CommandTree{
 					Command: command.Command{
 						Config: reflect.TypeOf(foo{}),
+						Flags:  []command.Flag{helpFlag},
 					},
 				},
 			},
@@ -114,6 +127,7 @@ func TestNew_TwoSubcommands(t *testing.T) {
 				CommandTree: cmdtree.CommandTree{
 					Command: command.Command{
 						Config: reflect.TypeOf(bar{}),
+						Flags:  []command.Flag{helpFlag},
 					},
 				},
 			},
@@ -186,12 +200,14 @@ func TestNew_ComplexTree(t *testing.T) {
 	assert.Equal(t, cmdtree.CommandTree{
 		Command: command.Command{
 			Config: reflect.TypeOf(root{}),
+			Flags:  []command.Flag{helpFlag},
 		},
 		Children: map[string]cmdtree.ChildCommand{
 			"a": cmdtree.ChildCommand{
 				CommandTree: cmdtree.CommandTree{
 					Command: command.Command{
 						Config: reflect.TypeOf(a{}),
+						Flags:  []command.Flag{helpFlag},
 					},
 				},
 			},
@@ -199,12 +215,14 @@ func TestNew_ComplexTree(t *testing.T) {
 				CommandTree: cmdtree.CommandTree{
 					Command: command.Command{
 						Config: reflect.TypeOf(b{}),
+						Flags:  []command.Flag{helpFlag},
 					},
 					Children: map[string]cmdtree.ChildCommand{
 						"c": cmdtree.ChildCommand{
 							CommandTree: cmdtree.CommandTree{
 								Command: command.Command{
 									Config: reflect.TypeOf(c{}),
+									Flags:  []command.Flag{helpFlag},
 								},
 							},
 						},
@@ -212,12 +230,14 @@ func TestNew_ComplexTree(t *testing.T) {
 							CommandTree: cmdtree.CommandTree{
 								Command: command.Command{
 									Config: reflect.TypeOf(e{}),
+									Flags:  []command.Flag{helpFlag},
 								},
 								Children: map[string]cmdtree.ChildCommand{
 									"f": cmdtree.ChildCommand{
 										CommandTree: cmdtree.CommandTree{
 											Command: command.Command{
 												Config: reflect.TypeOf(f{}),
+												Flags:  []command.Flag{helpFlag},
 											},
 										},
 									},
@@ -231,12 +251,14 @@ func TestNew_ComplexTree(t *testing.T) {
 				CommandTree: cmdtree.CommandTree{
 					Command: command.Command{
 						Config: reflect.TypeOf(g{}),
+						Flags:  []command.Flag{helpFlag},
 					},
 					Children: map[string]cmdtree.ChildCommand{
 						"h": cmdtree.ChildCommand{
 							CommandTree: cmdtree.CommandTree{
 								Command: command.Command{
 									Config: reflect.TypeOf(h{}),
+									Flags:  []command.Flag{helpFlag},
 								},
 							},
 						},
@@ -244,12 +266,14 @@ func TestNew_ComplexTree(t *testing.T) {
 							CommandTree: cmdtree.CommandTree{
 								Command: command.Command{
 									Config: reflect.TypeOf(i{}),
+									Flags:  []command.Flag{helpFlag},
 								},
 								Children: map[string]cmdtree.ChildCommand{
 									"j": cmdtree.ChildCommand{
 										CommandTree: cmdtree.CommandTree{
 											Command: command.Command{
 												Config: reflect.TypeOf(j{}),
+												Flags:  []command.Flag{helpFlag},
 											},
 										},
 									},
