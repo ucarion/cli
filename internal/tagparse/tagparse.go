@@ -34,7 +34,7 @@ const (
 	cliSubcmd = "subcmd"
 )
 
-var paramRegex = regexp.MustCompile("^[a-zA-Z][a-zA-Z_-]*$")
+var paramRegex = regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9_-]*$")
 
 func Parse(tag reflect.StructTag) (ParsedTag, error) {
 	cli, ok := tag.Lookup(tagCLI)

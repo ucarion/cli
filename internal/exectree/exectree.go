@@ -7,15 +7,15 @@ import (
 	"strings"
 
 	"github.com/ucarion/cli/internal/cmdtree"
+	"github.com/ucarion/cli/internal/command"
 	"github.com/ucarion/cli/param"
 )
 
 func Exec(ctx context.Context, tree cmdtree.CommandTree, args []string) error {
-	name := tree.Name
-	return exec(ctx, reflect.New(tree.Config).Elem(), tree, name, args)
+	return exec(ctx, reflect.New(tree.Config).Elem(), tree, args[:1], args[1:])
 }
 
-func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, name string, args []string) error {
+func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, name []string, args []string) error {
 	flagsTerminated := false
 	posArgIndex := 0 // index of the next positional argument to assign to
 
@@ -29,19 +29,19 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, n
 			// We have previously reached the flag terminator argument ("--").
 			// Regardless of any other context, we know that all remaining args
 			// are positional.
-			var posArg cmdtree.PosArg
+			var posArg command.PosArg
 			if posArgIndex == len(tree.PosArgs) {
-				posArg = tree.TrailingArgs
+				posArg = tree.Trailing
 			} else {
 				posArg = tree.PosArgs[posArgIndex]
 				posArgIndex++
 			}
 
-			if posArg.Field == nil {
+			if posArg.FieldIndex == nil {
 				return fmt.Errorf("unexpected positional argument: %s", arg)
 			}
 
-			if err := setConfigField(config, posArg.Field, arg); err != nil {
+			if err := setConfigField(config, posArg.FieldIndex, arg); err != nil {
 				return fmt.Errorf("%s: %w", posArg.Name, err)
 			}
 
@@ -71,7 +71,7 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, n
 				return fmt.Errorf("option --%s takes no value", name)
 			}
 
-			if err := setConfigField(config, flag.Field, value); err != nil {
+			if err := setConfigField(config, flag.FieldIndex, value); err != nil {
 				return fmt.Errorf("--%s: %w", name, err)
 			}
 
@@ -89,7 +89,7 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, n
 			// documented contract for both boolean and optionally-taking-value
 			// flags.
 			if !mustTakeValue(config, flag) {
-				if err := setConfigField(config, flag.Field, ""); err != nil {
+				if err := setConfigField(config, flag.FieldIndex, ""); err != nil {
 					return fmt.Errorf("--%s: %w", arg[2:], err)
 				}
 
@@ -104,7 +104,7 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, n
 
 			name := arg[2:]               // for error reporting
 			arg, args = args[0], args[1:] // eat an arg from args
-			if err := setConfigField(config, flag.Field, arg); err != nil {
+			if err := setConfigField(config, flag.FieldIndex, arg); err != nil {
 				return fmt.Errorf("--%s: %w", name, err)
 			}
 
@@ -137,7 +137,7 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, n
 					}
 
 					arg, args = args[0], args[1:] // eat an arg from args
-					if err := setConfigField(config, flag.Field, arg); err != nil {
+					if err := setConfigField(config, flag.FieldIndex, arg); err != nil {
 						return fmt.Errorf("-%s: %w", char, err)
 					}
 
@@ -157,7 +157,7 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, n
 				// them to empty-string if the value wasn't provided; that's
 				// precisely what we'll do if chars is empty in this if-block.
 				if mayTakeValue(config, flag) {
-					if err := setConfigField(config, flag.Field, chars); err != nil {
+					if err := setConfigField(config, flag.FieldIndex, chars); err != nil {
 						return fmt.Errorf("-%s: %w", char, err)
 					}
 
@@ -169,7 +169,7 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, n
 				// scanning the bundle.
 				//
 				// Setting a boolean flag can't fail.
-				setConfigField(config, flag.Field, "")
+				setConfigField(config, flag.FieldIndex, "")
 			}
 
 		default:
@@ -179,35 +179,32 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, n
 			// nonempty, but never both.
 			//
 			// Let's try to do the subcommand case first.
-			for _, child := range tree.Children {
-				if child.Name == arg {
-					// This child is our argument. Forward along what we have
-					// already to the child, and let the child process the
-					// remaining args.
-					childConfig := reflect.New(child.Config).Elem()
-					childConfig.Field(child.ParentConfigField).Set(config)
-
-					childName := name + " " + child.Name
-
-					return exec(ctx, childConfig, child.CommandTree, childName, args)
+			if len(tree.Children) != 0 {
+				child, ok := tree.Children[arg]
+				if !ok {
+					return fmt.Errorf("unknown sub-command: %s", arg)
 				}
+
+				childConfig := reflect.New(child.Config).Elem()
+				childConfig.Field(child.ParentIndexInChild).Set(config)
+				return exec(ctx, childConfig, child.CommandTree, append(name, arg), args)
 			}
 
 			// This code is the same as the positional argument logic in the
 			// flagsTerminated branch.
-			var posArg cmdtree.PosArg
+			var posArg command.PosArg
 			if posArgIndex == len(tree.PosArgs) {
-				posArg = tree.TrailingArgs
+				posArg = tree.Trailing
 			} else {
 				posArg = tree.PosArgs[posArgIndex]
 				posArgIndex++
 			}
 
-			if posArg.Field == nil {
+			if posArg.FieldIndex == nil {
 				return fmt.Errorf("unexpected positional argument: %s", arg)
 			}
 
-			if err := setConfigField(config, posArg.Field, arg); err != nil {
+			if err := setConfigField(config, posArg.FieldIndex, arg); err != nil {
 				return fmt.Errorf("%s: %w", posArg.Name, err)
 			}
 		}
@@ -220,31 +217,27 @@ func exec(ctx context.Context, config reflect.Value, tree cmdtree.CommandTree, n
 		return nil
 	}
 
-	return fmt.Errorf("%s: %w", name, err.(error))
+	return fmt.Errorf("%s: %w", strings.Join(name, " "), err.(error))
 }
 
-func getLongFlag(tree cmdtree.CommandTree, s string) (cmdtree.Flag, error) {
+func getLongFlag(tree cmdtree.CommandTree, s string) (command.Flag, error) {
 	for _, f := range tree.Flags {
-		for _, name := range f.LongNames {
-			if name == s {
-				return f, nil
-			}
+		if f.LongName == s {
+			return f, nil
 		}
 	}
 
-	return cmdtree.Flag{}, fmt.Errorf("unknown option: --%s", s)
+	return command.Flag{}, fmt.Errorf("unknown option: --%s", s)
 }
 
-func getShortFlag(tree cmdtree.CommandTree, s string) (cmdtree.Flag, error) {
+func getShortFlag(tree cmdtree.CommandTree, s string) (command.Flag, error) {
 	for _, f := range tree.Flags {
-		for _, name := range f.ShortNames {
-			if name == s {
-				return f, nil
-			}
+		if f.ShortName == s {
+			return f, nil
 		}
 	}
 
-	return cmdtree.Flag{}, fmt.Errorf("unknown option: -%s", s)
+	return command.Flag{}, fmt.Errorf("unknown option: -%s", s)
 }
 
 func setConfigField(config reflect.Value, index []int, val string) error {
@@ -253,12 +246,12 @@ func setConfigField(config reflect.Value, index []int, val string) error {
 	return p.Set(val)
 }
 
-func mayTakeValue(config reflect.Value, flag cmdtree.Flag) bool {
-	p, _ := param.New(config.FieldByIndex(flag.Field).Addr().Interface())
+func mayTakeValue(config reflect.Value, flag command.Flag) bool {
+	p, _ := param.New(config.FieldByIndex(flag.FieldIndex).Addr().Interface())
 	return param.MayTakeValue(p)
 }
 
-func mustTakeValue(config reflect.Value, flag cmdtree.Flag) bool {
-	p, _ := param.New(config.FieldByIndex(flag.Field).Addr().Interface())
+func mustTakeValue(config reflect.Value, flag command.Flag) bool {
+	p, _ := param.New(config.FieldByIndex(flag.FieldIndex).Addr().Interface())
 	return param.MustTakeValue(p)
 }

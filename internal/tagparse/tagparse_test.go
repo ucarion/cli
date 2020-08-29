@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
 	"github.com/ucarion/cli/internal/tagparse"
 )
 
@@ -18,6 +17,10 @@ func TestParse(t *testing.T) {
 		{
 			In:  `json:"foobar"`,
 			Out: tagparse.ParsedTag{},
+		},
+		{
+			In:  `cli:"a,b,c"`,
+			Err: "too many options in cli tag: a,b,c",
 		},
 		{
 			In:  `cli:"foo,subcmd"`,

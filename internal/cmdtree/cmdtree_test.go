@@ -25,6 +25,34 @@ func TestNew_Basic(t *testing.T) {
 	}, removeFunc(tree))
 }
 
+func TestNew_BadCommand(t *testing.T) {
+	_, err := cmdtree.New([]interface{}{
+		func() {},
+	})
+
+	assert.Equal(t,
+		"command funcs must have type: func(context.Context, T) error, got: func()",
+		err.Error())
+}
+
+func TestNew_BadConfigType(t *testing.T) {
+	type rootArgs struct {
+		X string `cli:"_"`
+	}
+
+	type args struct {
+		Root rootArgs `cli:"root,subcmd"`
+	}
+
+	_, err := cmdtree.New([]interface{}{
+		func(_ context.Context, _ args) error { return nil },
+	})
+
+	assert.Equal(t,
+		"invalid positional argument name: _",
+		err.Error())
+}
+
 func TestNew_RootAndSub(t *testing.T) {
 	type root struct{}
 	type sub struct {

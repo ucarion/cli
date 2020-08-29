@@ -195,6 +195,39 @@ func TestFromType_EmbeddedPosArgs(t *testing.T) {
 	assert.Equal(t, command.ParentInfo{}, pinfo)
 }
 
+func TestFromType_GamutOfTypes(t *testing.T) {
+	type args struct {
+		Bool          bool          `cli:"--bool"`
+		Int           int           `cli:"--int"`
+		Int8          int8          `cli:"--int8"`
+		Int16         int16         `cli:"--int16"`
+		Int32         int32         `cli:"--int32"`
+		Int64         int64         `cli:"--int64"`
+		Uint          uint          `cli:"--uint"`
+		Uint8         uint8         `cli:"--uint8"`
+		Uint16        uint16        `cli:"--uint16"`
+		Uint32        uint32        `cli:"--uint32"`
+		Uint64        uint64        `cli:"--uint64"`
+		Float32       float32       `cli:"--float32"`
+		Float64       float64       `cli:"--float64"`
+		String        string        `cli:"--string"`
+		Value         customValue   `cli:"--value"`
+		StringArr     []string      `cli:"--string-arr"`
+		ValueArr      []customValue `cli:"--value-arr"`
+		OptionalValue *customValue  `cli:"--opt-value"`
+		OptionalStr   *string       `cli:"--opt-string"`
+	}
+
+	_, _, err := command.FromType(reflect.TypeOf(args{}))
+	assert.NoError(t, err)
+}
+
+type customValue struct{}
+
+func (c customValue) Set(_ string) error {
+	return nil
+}
+
 func TestFromType_UsageAndValueTag(t *testing.T) {
 	type args struct {
 		A string `cli:"-a" usage:"xxx" value:"yyy"`
@@ -241,6 +274,34 @@ func TestFromType_Methods(t *testing.T) {
 		},
 	}, cmd)
 	assert.Equal(t, command.ParentInfo{}, pinfo)
+}
+
+func TestFromType_BadTag(t *testing.T) {
+	type args struct {
+		X string `cli:"_"`
+	}
+
+	_, _, err := command.FromType(reflect.TypeOf(args{}))
+
+	assert.Equal(t,
+		"invalid positional argument name: _",
+		err.Error())
+}
+
+func TestFromType_BadEmbedTag(t *testing.T) {
+	type embed struct {
+		X string `cli:"_"`
+	}
+
+	type args struct {
+		embed
+	}
+
+	_, _, err := command.FromType(reflect.TypeOf(args{}))
+
+	assert.Equal(t,
+		"invalid positional argument name: _",
+		err.Error())
 }
 
 func TestFromType_StringPtrPtr(t *testing.T) {
