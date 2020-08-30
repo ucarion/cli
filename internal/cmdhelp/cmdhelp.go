@@ -97,6 +97,10 @@ func Help(tree cmdtree.CommandTree, name []string) string {
 
 	w.Flush()
 
+	// Add one last empty line to make the output more clearly separated from
+	// the subsequent CLI prompt.
+	buf.WriteByte('\n')
+
 	return buf.String()
 }
 

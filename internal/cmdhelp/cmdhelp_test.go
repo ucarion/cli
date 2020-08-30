@@ -20,6 +20,7 @@ func TestHelp_Basic(t *testing.T) {
 	assert.Equal(t, `usage: ./cmd [<options>]
 
     -h, --help    display this help and exit
+
 `, cmdhelp.Help(tree, []string{"./cmd"}))
 }
 
@@ -51,6 +52,7 @@ this is an extended description
     -y <yyy>              do some y stuff
         --zulu[=<zzz>]    do some z stuff
     -h, --help            display this help and exit
+
 `, cmdhelp.Help(tree, []string{"./cmd"}))
 }
 
@@ -89,6 +91,7 @@ this is an extended description
     -y <yyy>              do some y stuff
         --zulu[=<zzz>]    do some z stuff
     -h, --help            display this help and exit
+
 `, cmdhelp.Help(tree, []string{"./cmd"}))
 }
 
@@ -108,5 +111,6 @@ this is an extended description
     -y <yyy>              do some y stuff
         --zulu[=<zzz>]    do some z stuff
     -h, --help            display this help and exit
+
 `, cmdhelp.Help(tree, []string{"./cmd"}))
 }
