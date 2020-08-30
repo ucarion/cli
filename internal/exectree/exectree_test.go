@@ -117,7 +117,7 @@ func TestExec_SubcmdHelp(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, exectree.Exec(context.Background(), tree, []string{"cmd", "sub", "--help"}))
 	assert.False(t, called)
-	assert.Equal(t, cmdhelp.Help(tree, []string{"cmd", "sub"}), helpBuf.String())
+	assert.Equal(t, cmdhelp.Help(tree.Children["sub"].CommandTree, []string{"cmd", "sub"}), helpBuf.String())
 }
 
 func TestExec_SubcmdFuncError(t *testing.T) {
