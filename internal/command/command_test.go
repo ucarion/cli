@@ -323,6 +323,7 @@ func TestFromType_UsageAndValueTag(t *testing.T) {
 type argsWithMethods struct {
 	A string `cli:"-a"`
 	B string `cli:"-b"`
+	C string `cli:"c"`
 }
 
 func (a argsWithMethods) Description() string {
@@ -337,9 +338,24 @@ func (a argsWithMethods) ExtendedUsage_A() string {
 	return "baz"
 }
 
+func (a argsWithMethods) Autocomplete_A() []string {
+	return []string{"quux"}
+}
+
+func (a argsWithMethods) Autocomplete_C() []string {
+	return []string{"toto"}
+}
+
 func TestFromType_Methods(t *testing.T) {
 	cmd, pinfo, err := command.FromType(reflect.TypeOf(argsWithMethods{}))
 	assert.NoError(t, err)
+
+	f1 := cmd.Flags[0].AutocompleteFunc.Interface().(func(argsWithMethods) []string)
+	f2 := cmd.PosArgs[0].AutocompleteFunc.Interface().(func(argsWithMethods) []string)
+
+	cmd.Flags[0].AutocompleteFunc = reflect.Value{}   // you can't check equality on funcs
+	cmd.PosArgs[0].AutocompleteFunc = reflect.Value{} // same here
+
 	assert.Equal(t, command.Command{
 		Config:              reflect.TypeOf(argsWithMethods{}),
 		Description:         "foo",
@@ -349,8 +365,14 @@ func TestFromType_Methods(t *testing.T) {
 			command.Flag{ShortName: "b", FieldIndex: []int{1}},
 			helpFlag,
 		},
+		PosArgs: []command.PosArg{
+			command.PosArg{Name: "c", FieldIndex: []int{2}},
+		},
 	}, cmd)
 	assert.Equal(t, command.ParentInfo{}, pinfo)
+
+	assert.Equal(t, []string{"quux"}, f1(argsWithMethods{}))
+	assert.Equal(t, []string{"toto"}, f2(argsWithMethods{}))
 }
 
 func TestFromType_BadTag(t *testing.T) {

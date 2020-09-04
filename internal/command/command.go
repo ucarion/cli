@@ -20,18 +20,20 @@ type Command struct {
 }
 
 type Flag struct {
-	ShortName     string
-	LongName      string
-	Usage         string
-	ExtendedUsage string
-	ValueName     string
-	IsHelp        bool
-	FieldIndex    []int
+	ShortName        string
+	LongName         string
+	Usage            string
+	ExtendedUsage    string
+	ValueName        string
+	IsHelp           bool
+	FieldIndex       []int
+	AutocompleteFunc reflect.Value
 }
 
 type PosArg struct {
-	Name       string
-	FieldIndex []int
+	Name             string
+	FieldIndex       []int
+	AutocompleteFunc reflect.Value
 }
 
 type ParentInfo struct {
@@ -48,7 +50,10 @@ type extendedDescription interface {
 	ExtendedDescription() string
 }
 
-const extendedUsagePrefix = "ExtendedUsage_"
+const (
+	extendedUsagePrefix = "ExtendedUsage_"
+	autocompletePrefix  = "Autocomplete_"
+)
 
 func FromFunc(fn interface{}) (Command, ParentInfo, error) {
 	t := reflect.TypeOf(fn)
@@ -63,9 +68,11 @@ func FromFunc(fn interface{}) (Command, ParentInfo, error) {
 }
 
 var (
-	paramType = reflect.TypeOf((*param.Param)(nil)).Elem()
-	ctxType   = reflect.TypeOf((*context.Context)(nil)).Elem()
-	errType   = reflect.TypeOf((*error)(nil)).Elem()
+	paramType       = reflect.TypeOf((*param.Param)(nil)).Elem()
+	ctxType         = reflect.TypeOf((*context.Context)(nil)).Elem()
+	errType         = reflect.TypeOf((*error)(nil)).Elem()
+	stringType      = reflect.TypeOf("")
+	stringSliceType = reflect.SliceOf(stringType)
 )
 
 func checkValidFunc(t reflect.Type) error {
@@ -170,19 +177,29 @@ func addParams(cmd *Command, index []int, t reflect.Type) error {
 			if m, ok := t.MethodByName(extendedUsagePrefix + f.Name); ok {
 				// Ensure the method has the right signature: it takes in a
 				// receiver and no args, and returns just a string.
-				if m.Type.NumIn() == 1 && m.Type.NumOut() == 1 && m.Type.Out(0) == reflect.TypeOf("") {
+				if m.Type.NumIn() == 1 && m.Type.NumOut() == 1 && m.Type.Out(0) == stringType {
 					m := v.MethodByName(extendedUsagePrefix + f.Name)
 					extendedUsage = m.Call(nil)[0].Interface().(string)
 				}
 			}
 
+			var autocompleteFunc reflect.Value
+			if m, ok := t.MethodByName(autocompletePrefix + f.Name); ok {
+				// Ensure the method has the right signature: it takes in a
+				// receiver and no args, and returns just a []string.
+				if m.Type.NumIn() == 1 && m.Type.NumOut() == 1 && m.Type.Out(0) == stringSliceType {
+					autocompleteFunc = m.Func
+				}
+			}
+
 			cmd.Flags = append(cmd.Flags, Flag{
-				ShortName:     tag.ShortFlagName,
-				LongName:      tag.LongFlagName,
-				Usage:         tag.Usage,
-				ExtendedUsage: extendedUsage,
-				ValueName:     tag.FlagValueName,
-				FieldIndex:    append(index, i),
+				ShortName:        tag.ShortFlagName,
+				LongName:         tag.LongFlagName,
+				Usage:            tag.Usage,
+				ExtendedUsage:    extendedUsage,
+				ValueName:        tag.FlagValueName,
+				FieldIndex:       append(index, i),
+				AutocompleteFunc: autocompleteFunc,
 			})
 		case tagparse.KindPosArg:
 			// Ensure the field is a valid param.
@@ -190,9 +207,19 @@ func addParams(cmd *Command, index []int, t reflect.Type) error {
 				return fmt.Errorf("%v: %w", f.Name, err)
 			}
 
+			var autocompleteFunc reflect.Value
+			if m, ok := t.MethodByName(autocompletePrefix + f.Name); ok {
+				// Ensure the method has the right signature: it takes in a
+				// receiver and no args, and returns just a []string.
+				if m.Type.NumIn() == 1 && m.Type.NumOut() == 1 && m.Type.Out(0) == stringSliceType {
+					autocompleteFunc = m.Func
+				}
+			}
+
 			posArg := PosArg{
-				Name:       tag.PosArgName,
-				FieldIndex: append(index, i),
+				Name:             tag.PosArgName,
+				FieldIndex:       append(index, i),
+				AutocompleteFunc: autocompleteFunc,
 			}
 
 			if tag.IsTrailing {
