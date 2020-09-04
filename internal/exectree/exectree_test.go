@@ -513,6 +513,28 @@ func TestExec_UnknownSubcmd(t *testing.T) {
 		exectree.Exec(context.Background(), tree, []string{"cmd", "foo"}).Error())
 }
 
+func TestExec_NonExecableCommand(t *testing.T) {
+	type rootArgs struct{}
+	type subArgs struct {
+		Root rootArgs `cli:"sub,subcmd"`
+	}
+
+	tree, err := cmdtree.New([]interface{}{
+		func(_ context.Context, _ subArgs) error { return nil },
+	})
+
+	initialHelpOut := exectree.HelpWriter
+	var helpBuf bytes.Buffer
+	exectree.HelpWriter = &helpBuf
+	defer func() {
+		exectree.HelpWriter = initialHelpOut
+	}()
+
+	assert.NoError(t, err)
+	assert.NoError(t, exectree.Exec(context.Background(), tree, []string{"cmd"}))
+	assert.Equal(t, cmdhelp.Help(tree, []string{"cmd"}), helpBuf.String())
+}
+
 func TestExec_GamutOfTypes(t *testing.T) {
 	type args struct {
 		Bool          bool          `cli:"--bool"`

@@ -16,6 +16,8 @@ import (
 var HelpWriter io.Writer = os.Stdout
 
 func Exec(ctx context.Context, tree cmdtree.CommandTree, args []string) error {
+	// The argparser module does most of the work of understanding what each arg
+	// does to the tree.
 	parser := argparser.New(tree)
 	for _, arg := range args {
 		if err := parser.ParseArg(arg); err != nil {
@@ -23,11 +25,15 @@ func Exec(ctx context.Context, tree cmdtree.CommandTree, args []string) error {
 		}
 	}
 
+	// Make sure that after all the args are passed, that we're in a valid
+	// parsing state to leave things on.
 	if err := parser.NoMoreArgs(); err != nil {
 		return err
 	}
 
-	if parser.ShowHelp {
+	// If the user passed a help flag or is invoking a command that isn't itself
+	// executable, then show a help message.
+	if parser.ShowHelp || !parser.CommandTree.Func.IsValid() {
 		_, err := HelpWriter.Write([]byte(cmdhelp.Help(parser.CommandTree, parser.Name)))
 		return err
 	}
