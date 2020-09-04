@@ -38,6 +38,18 @@ func Autocomplete(tree cmdtree.CommandTree, args []string) []string {
 	// flag.
 	if !parser.FlagsTerminated {
 		for _, f := range parser.CommandTree.Flags {
+			// Don't include help flags.
+			if f.IsHelp {
+				continue
+			}
+
+			// If the config value for this flag is non-zero, then we assume
+			// that flag has been used, and so we do not include it in the
+			// autocompletion suggestions.
+			if !parser.Config.FieldByIndex(f.FieldIndex).IsZero() {
+				continue
+			}
+
 			if f.LongName != "" {
 				out = append(out, "--"+f.LongName)
 			} else {

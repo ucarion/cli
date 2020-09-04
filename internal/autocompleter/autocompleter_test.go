@@ -17,7 +17,7 @@ func TestAutocomplete_Basic(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, []string{"--help"}, autocompleter.Autocomplete(tree, nil))
+	assert.Equal(t, []string(nil), autocompleter.Autocomplete(tree, nil))
 }
 
 func TestAutocomplete_Flags(t *testing.T) {
@@ -33,7 +33,7 @@ func TestAutocomplete_Flags(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t,
-		[]string{"--bravo", "--charlie", "--help", "-a"},
+		[]string{"--bravo", "--charlie", "-a"},
 		autocompleter.Autocomplete(tree, nil))
 
 	// This is an invalid invocation. You can't set C (an int) to "xxx".
@@ -81,7 +81,7 @@ func TestAutocomplete_PosArgAutocomplete(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t,
-		[]string{"--help", "-a", "-b", "xxx"},
+		[]string{"-b", "xxx"},
 		autocompleter.Autocomplete(tree, []string{"cmd", "-axxx"}))
 }
 
@@ -92,7 +92,7 @@ func TestAutocomplete_TrailingAutocomplete(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t,
-		[]string{"--help", "-a", "-b", "xxx", "yyy"},
+		[]string{"-a", "-b", "xxx", "yyy"},
 		autocompleter.Autocomplete(tree, []string{"cmd", "a", "b"}))
 }
 
@@ -128,12 +128,12 @@ func TestAutocomplete_ExecutableWithSubcommands(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t,
-		[]string{"--help", "-x", "-y", "-z", "sub1", "sub2"},
+		[]string{"-x", "-y", "-z", "sub1", "sub2"},
 		autocompleter.Autocomplete(tree, []string{"cmd"}))
 	assert.Equal(t,
-		[]string{"--help", "-a"},
+		[]string{"-a"},
 		autocompleter.Autocomplete(tree, []string{"cmd", "sub1"}))
 	assert.Equal(t,
-		[]string{"--help", "-b"},
+		[]string{"-b"},
 		autocompleter.Autocomplete(tree, []string{"cmd", "sub2"}))
 }
