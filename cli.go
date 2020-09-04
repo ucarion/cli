@@ -53,6 +53,8 @@ func Run(ctx context.Context, funcs ...interface{}) {
 		for _, s := range autocompleter.Autocomplete(tree, args[:argc]) {
 			fmt.Println(s)
 		}
+
+		return
 	}
 
 	// Try to see if we are being called by the user for the purposes of
@@ -78,8 +80,6 @@ func Run(ctx context.Context, funcs ...interface{}) {
 			}
 		}
 
-		// Don't actually run the command. Once we've generated the man pages,
-		// immediately exit successfully.
 		return
 	}
 
