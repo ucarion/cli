@@ -530,7 +530,7 @@ func TestExec_UnknownSubcmd(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t,
-		"unknown sub-command: foo",
+		"unknown sub-command: foo, did you mean: sub?",
 		exectree.Exec(context.Background(), tree, []string{"cmd", "foo"}).Error())
 }
 

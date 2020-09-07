@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/ucarion/cli/internal/didyoumean"
+
 	"github.com/ucarion/cli/internal/cmdtree"
 	"github.com/ucarion/cli/param"
 
@@ -177,7 +179,8 @@ func (p *Parser) ParseArg(s string) error {
 			// name.
 			child, ok := p.CommandTree.Children[s]
 			if !ok {
-				return fmt.Errorf("unknown sub-command: %s", s)
+				dym := didyoumean.DidYouMean(p.CommandTree, s)
+				return fmt.Errorf("unknown sub-command: %s, did you mean: %s?", s, dym)
 			}
 
 			childConfig := reflect.New(child.Config).Elem()
