@@ -437,12 +437,33 @@ func TestExec_ExtraPosArgs(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, "unexpected positional argument: c",
+	assert.Equal(t, "unexpected argument: c",
 		exectree.Exec(context.TODO(), tree, []string{"cmd", "a", "b", "c"}).Error())
 
 	assert.NoError(t, err)
-	assert.Equal(t, "unexpected positional argument: c",
+	assert.Equal(t, "unexpected argument: c",
 		exectree.Exec(context.TODO(), tree, []string{"cmd", "a", "b", "--", "c"}).Error())
+}
+
+func TestExec_MissingPosArgs(t *testing.T) {
+	type args struct {
+		A bool   `cli:"-a,--alpha"`
+		B string `cli:"-b,--bravo"`
+		X string `cli:"x"`
+		Y string `cli:"y"`
+	}
+
+	tree, err := cmdtree.New([]interface{}{
+		func(ctx context.Context, args args) error {
+			return nil
+		},
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, "argument x requires a value",
+		exectree.Exec(context.TODO(), tree, []string{"cmd"}).Error())
+	assert.Equal(t, "argument y requires a value",
+		exectree.Exec(context.TODO(), tree, []string{"cmd", "a"}).Error())
 }
 
 func TestExec_Subcmds(t *testing.T) {

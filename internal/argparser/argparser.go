@@ -208,7 +208,7 @@ func (p *Parser) parsePosArg(s string) error {
 	}
 
 	if posArg.FieldIndex == nil {
-		return fmt.Errorf("unexpected positional argument: %s", s)
+		return fmt.Errorf("unexpected argument: %s", s)
 	}
 
 	if err := setConfigField(p.Config, posArg.FieldIndex, s); err != nil {
@@ -269,6 +269,11 @@ func (p Parser) NoMoreArgs() error {
 		} else {
 			return fmt.Errorf("option --%s requires a value", p.Flag.LongName)
 		}
+	}
+
+	if p.PosArgIndex < len(p.CommandTree.PosArgs) {
+		posArg := p.CommandTree.PosArgs[p.PosArgIndex]
+		return fmt.Errorf("argument %s requires a value", posArg.Name)
 	}
 
 	return nil
