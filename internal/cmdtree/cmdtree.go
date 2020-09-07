@@ -83,10 +83,19 @@ func New(fns []interface{}) (CommandTree, error) {
 		return CommandTree{}, fmt.Errorf("multiple top-level commands: %v", rootTypes)
 	}
 
-	return CommandTree{
+	tree := CommandTree{
 		Command:  roots[0].Command,
 		Children: newForest(cmdsByParent, roots[0].Config),
-	}, nil
+	}
+
+	// Do a pass over the tree to make sure no parent command also has
+	// positional arguments; there's no way to disambiguate a positional
+	// argument from a subcommand, so the two must be mutually exclusive.
+	if err := checkParentCmdPosArgs(tree); err != nil {
+		return CommandTree{}, err
+	}
+
+	return tree, nil
 }
 
 func newForest(cmdsByParent map[reflect.Type][]cmdWithParentInfo, root reflect.Type) map[string]ChildCommand {
@@ -106,4 +115,12 @@ func newForest(cmdsByParent map[reflect.Type][]cmdWithParentInfo, root reflect.T
 	}
 
 	return out
+}
+
+func checkParentCmdPosArgs(tree CommandTree) error {
+	if len(tree.Children) != 0 && len(tree.PosArgs) != 0 {
+		return fmt.Errorf("parent command %v has positional arguments", tree.Config)
+	}
+
+	return nil
 }

@@ -62,6 +62,24 @@ func TestNew_BadConfigType(t *testing.T) {
 		err.Error())
 }
 
+func TestNew_PosArgsAndSubcmds(t *testing.T) {
+	type rootArgs struct {
+		X string `cli:"x"`
+	}
+
+	type args struct {
+		Root rootArgs `cli:"root,subcmd"`
+	}
+
+	_, err := cmdtree.New([]interface{}{
+		func(_ context.Context, _ args) error { return nil },
+	})
+
+	assert.Equal(t,
+		"parent command cmdtree_test.rootArgs has positional arguments",
+		err.Error())
+}
+
 func TestNew_RootAndSub(t *testing.T) {
 	type root struct{}
 	type sub struct {
