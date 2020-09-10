@@ -25,16 +25,19 @@ func Exec(ctx context.Context, tree cmdtree.CommandTree, args []string) error {
 		}
 	}
 
-	// Make sure that after all the args are passed, that we're in a valid
-	// parsing state to leave things on.
-	if err := parser.NoMoreArgs(); err != nil {
+	// If the user passed a help flag or is invoking a command that isn't itself
+	// executable, then show a help message.
+	//
+	// We do this check before the NoMoreArgs check because we want to let users
+	// pass --help without necessarily making a correct invocation.
+	if parser.ShowHelp || !parser.CommandTree.Func.IsValid() {
+		_, err := HelpWriter.Write([]byte(cmdhelp.Help(parser.CommandTree, parser.Name)))
 		return err
 	}
 
-	// If the user passed a help flag or is invoking a command that isn't itself
-	// executable, then show a help message.
-	if parser.ShowHelp || !parser.CommandTree.Func.IsValid() {
-		_, err := HelpWriter.Write([]byte(cmdhelp.Help(parser.CommandTree, parser.Name)))
+	// Make sure that after all the args are passed, that we're in a valid
+	// parsing state to leave things on.
+	if err := parser.NoMoreArgs(); err != nil {
 		return err
 	}
 

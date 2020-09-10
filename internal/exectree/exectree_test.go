@@ -70,7 +70,9 @@ func TestExec_ShortHelp(t *testing.T) {
 }
 
 func TestExec_LongHelp(t *testing.T) {
-	type rootArgs struct{}
+	type rootArgs struct {
+		X string `cli:"x"`
+	}
 
 	called := false
 	tree, err := cmdtree.New([]interface{}{
