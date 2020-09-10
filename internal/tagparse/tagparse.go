@@ -88,13 +88,15 @@ func Parse(tag reflect.StructTag) (ParsedTag, error) {
 		}
 
 		parsed = ParsedTag{Kind: KindFlag, ShortFlagName: shortName, LongFlagName: longName}
-	} else if strings.HasPrefix(cliParts[0], "...") {
+	} else if strings.HasSuffix(cliParts[0], "...") {
 		// We are dealing with a trailing posarg-kinded tag.
-		if !paramRegex.MatchString(cliParts[0][3:]) {
+		withoutTrailingDots := cliParts[0][:len(cliParts[0])-3]
+
+		if !paramRegex.MatchString(withoutTrailingDots) {
 			return ParsedTag{}, fmt.Errorf("invalid positional argument name: %v", cliParts[0])
 		}
 
-		parsed = ParsedTag{Kind: KindPosArg, PosArgName: cliParts[0][3:], IsTrailing: true}
+		parsed = ParsedTag{Kind: KindPosArg, PosArgName: withoutTrailingDots, IsTrailing: true}
 	} else {
 		// We are dealing with a posarg-kinded tag.
 		if !paramRegex.MatchString(cliParts[0]) {

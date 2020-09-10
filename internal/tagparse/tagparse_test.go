@@ -75,7 +75,7 @@ func TestParse(t *testing.T) {
 			Out: tagparse.ParsedTag{Kind: tagparse.KindPosArg, PosArgName: "foo"},
 		},
 		{
-			In:  `cli:"...foo"`,
+			In:  `cli:"foo..."`,
 			Out: tagparse.ParsedTag{Kind: tagparse.KindPosArg, PosArgName: "foo", IsTrailing: true},
 		},
 		{
@@ -83,8 +83,8 @@ func TestParse(t *testing.T) {
 			Err: "invalid positional argument name: foo~",
 		},
 		{
-			In:  `cli:"...foo~"`,
-			Err: "invalid positional argument name: ...foo~",
+			In:  `cli:"foo~..."`,
+			Err: "invalid positional argument name: foo~...",
 		},
 	}
 

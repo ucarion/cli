@@ -38,7 +38,7 @@ Display help message and exit.
 type gamutArgs struct {
 	Foo string   `cli:"foo"`
 	Bar string   `cli:"bar"`
-	Baz []string `cli:"...baz"`
+	Baz []string `cli:"baz..."`
 	X   string   `cli:"-x,--x-ray" value:"xxx" usage:"do some x stuff"`
 	Y   string   `cli:"-y" value:"yyy" usage:"do some y stuff"`
 	Z   *string  `cli:"--zulu" value:"zzz" usage:"do some z stuff"`

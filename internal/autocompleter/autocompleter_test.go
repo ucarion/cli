@@ -45,7 +45,7 @@ type autocompleteArgs struct {
 	B string   `cli:"-b"`
 	C string   `cli:"c"`
 	D string   `cli:"d"`
-	E []string `cli:"...e"`
+	E []string `cli:"e..."`
 }
 
 func (a autocompleteArgs) Autocomplete_B() []string {

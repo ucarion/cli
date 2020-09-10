@@ -215,7 +215,7 @@ func TestFromType_EmbeddedFlags(t *testing.T) {
 func TestFromType_PosArgs(t *testing.T) {
 	type args struct {
 		A string `cli:"a"`
-		B string `cli:"...b"`
+		B string `cli:"b..."`
 		C string
 		D string `cli:"d"`
 	}
@@ -236,7 +236,7 @@ func TestFromType_PosArgs(t *testing.T) {
 
 func TestFromType_EmbeddedPosArgs(t *testing.T) {
 	type embed2 struct {
-		F string `cli:"...f"`
+		F string `cli:"f..."`
 	}
 
 	type embed struct {

@@ -148,7 +148,7 @@ func TestExec_Flags(t *testing.T) {
 		X        string   `cli:"-x,--x-ray"`
 		Y        string   `cli:"-y,--yankee"`
 		Z        *string  `cli:"-z,--zulu"`
-		Trailing []string `cli:"...trailing"`
+		Trailing []string `cli:"trailing..."`
 	}
 
 	testCases := []struct {
@@ -367,7 +367,7 @@ func TestExec_PosArgs(t *testing.T) {
 		B string   `cli:"-b,--bravo"`
 		X string   `cli:"x"`
 		Y string   `cli:"y"`
-		Z []string `cli:"...z"`
+		Z []string `cli:"z..."`
 	}
 
 	testCases := []struct {
@@ -480,7 +480,7 @@ func TestExec_Subcmds(t *testing.T) {
 		D        string   `cli:"-d,--delta"`
 		X        string   `cli:"x"`
 		Y        string   `cli:"y"`
-		Z        []string `cli:"...z"`
+		Z        []string `cli:"z..."`
 	}
 
 	testCases := []struct {
