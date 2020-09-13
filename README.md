@@ -74,8 +74,10 @@ and you use it as a starting point in your own applications.
 ## Usage
 
 For detailed, specific documentation on exactly what you can pass to `cli.Run`,
-see the godocs for `github.com/ucarion/cli`. This section will work more as a
-cookbook, showing you working programs that you can work off of.
+see [the godocs for
+`github.com/ucarion/cli`](https://pkg.go.dev/github.com/ucarion/cli?tab=doc).
+This section will work more as a cookbook, showing you working programs that you
+can work off of.
 
 At a high level, you use `cli` by passing `cli.Run` a context and a set of
 functions. `cli` requires that every function you pass to `cli.Run` looks like:
@@ -142,7 +144,7 @@ $ go run ./examples/options/... -fn5 --rfc3339 --output=json
 
 To accept arguments that aren't options, like the `pattern` and trailing list of
 `files` in `grep pattern files...`, then tag your fields with `cli`, but don't
-include a leading `-` or `--`. If your tag's value starts with `...`, then all
+include a leading `-` or `--`. If your tag's value ends with `...`, then all
 "leftover" / "trailing" arguments will go into that field.
 
 ```go
