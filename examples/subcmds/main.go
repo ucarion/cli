@@ -22,7 +22,7 @@ type getArgs struct {
 }
 
 func get(ctx context.Context, args getArgs) error {
-	fmt.Println("get", args)
+	fmt.Printf("get %#v\n", args)
 	return nil
 }
 
@@ -33,6 +33,6 @@ type setArgs struct {
 }
 
 func set(ctx context.Context, args setArgs) error {
-	fmt.Println("set", args)
+	fmt.Printf("set %#v\n", args)
 	return nil
 }

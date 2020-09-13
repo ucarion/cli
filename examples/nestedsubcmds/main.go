@@ -22,7 +22,7 @@ type getArgs struct {
 }
 
 func get(ctx context.Context, args getArgs) error {
-	fmt.Println("get", args)
+	fmt.Printf("get %#v\n", args)
 	return nil
 }
 
@@ -33,7 +33,7 @@ type setArgs struct {
 }
 
 func set(ctx context.Context, args setArgs) error {
-	fmt.Println("set", args)
+	fmt.Printf("set %#v\n", args)
 	return nil
 }
 
@@ -48,7 +48,7 @@ type getConfigArgs struct {
 }
 
 func getConfig(ctx context.Context, args getConfigArgs) error {
-	fmt.Println("get config", args)
+	fmt.Printf("get config %#v\n", args)
 	return nil
 }
 
@@ -59,6 +59,6 @@ type setConfigArgs struct {
 }
 
 func setConfig(ctx context.Context, args setConfigArgs) error {
-	fmt.Println("set config", args)
+	fmt.Printf("set config %#v\n", args)
 	return nil
 }

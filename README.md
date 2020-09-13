@@ -118,7 +118,7 @@ type args struct {
 
 func main() {
 	cli.Run(context.Background(), func(ctx context.Context, args args) error {
-		fmt.Println(args)
+		fmt.Printf("%#v\n", args)
 		return nil
 	})
 }
@@ -129,10 +129,10 @@ as:
 
 ```text
 $ go run ./examples/options/...
-{false  0 false}
+main.args{Force:false, Output:"", N:0, RFC3339:false}
 
 $ go run ./examples/options/... --force --output json --rfc3339 -n 5
-{true json 5 true}
+main.args{Force:true, Output:"json", N:5, RFC3339:true}
 ```
 
 `cli` supports the full set of "standard" Unix command-line conventions, so this
@@ -140,7 +140,7 @@ also works, like it would with most tools in modern Linux distributions:
 
 ```text
 $ go run ./examples/options/... -fn5 --rfc3339 --output=json
-{true json 5 true}
+main.args{Force:true, Output:"json", N:5, RFC3339:true}
 ```
 
 ### Accepting "Positional" Arguments
@@ -168,7 +168,7 @@ type args struct {
 
 func main() {
 	cli.Run(context.Background(), func(ctx context.Context, args args) error {
-		fmt.Println(args)
+		fmt.Printf("%#v\n", args)
 		return nil
 	})
 }
@@ -179,10 +179,10 @@ as:
 
 ```text
 $ go run ./examples/posargs/... a b
-{a b []}
+main.args{Foo:"a", Bar:"b", Baz:[]string(nil)}
 
 $ go run ./examples/posargs/... a b c d e
-{a b [c d e]}
+main.args{Foo:"a", Bar:"b", Baz:[]string{"c", "d", "e"}}
 ```
 
 ### Mixing Options and Arguments
@@ -212,7 +212,7 @@ type args struct {
 
 func main() {
 	cli.Run(context.Background(), func(ctx context.Context, args args) error {
-		fmt.Println(args)
+		fmt.Printf("%#v\n", args)
 		return nil
 	})
 }
@@ -223,7 +223,7 @@ can run as:
 
 ```text
 $ go run ./examples/argsandopts/... --force --output=json a b c d e --rfc3339
-{true json 0 true a b [c d e]}
+main.args{Force:true, Output:"json", N:0, RFC3339:true, Foo:"a", Bar:"b", Baz:[]string{"c", "d", "e"}}
 ```
 
 As is standard with Unix tools, `cli` will treat `--` in the input args as a
@@ -232,7 +232,7 @@ be treated as an argument instead of a flag, you could do:
 
 ```text
 $ go run ./examples/argsandopts/... --force --output=json a b c d e -- --rfc3339
-{true json 0 false a b [c d e --rfc3339]}
+main.args{Force:true, Output:"json", N:0, RFC3339:false, Foo:"a", Bar:"b", Baz:[]string{"c", "d", "e", "--rfc3339"}}
 ```
 
 ### Defining Commands and Sub-Commands
@@ -278,7 +278,7 @@ type getArgs struct {
 }
 
 func get(ctx context.Context, args getArgs) error {
-	fmt.Println("get", args)
+	fmt.Printf("get %#v\n", args)
 	return nil
 }
 
@@ -289,7 +289,7 @@ type setArgs struct {
 }
 
 func set(ctx context.Context, args setArgs) error {
-	fmt.Println("set", args)
+	fmt.Printf("set %#v\n", args)
 	return nil
 }
 ```
@@ -299,9 +299,9 @@ as:
 
 ```text
 $ go run ./examples/subcmds/... --username foo --password bar get xxx
-get {{foo bar} xxx}
+get main.getArgs{RootArgs:main.rootArgs{Username:"foo", Password:"bar"}, Key:"xxx"}
 $ go run ./examples/subcmds/... --username foo --password bar set xxx yyy
-set {{foo bar} xxx yyy}
+set main.setArgs{RootArgs:main.rootArgs{Username:"foo", Password:"bar"}, Key:"xxx", Value:"yyy"}
 ```
 
 The pattern above of pointing to your parent config type via `cli:"xxx,subcmd"`
@@ -333,7 +333,7 @@ type getArgs struct {
 }
 
 func get(ctx context.Context, args getArgs) error {
-	fmt.Println("get", args)
+	fmt.Printf("get %#v\n", args)
 	return nil
 }
 
@@ -344,7 +344,7 @@ type setArgs struct {
 }
 
 func set(ctx context.Context, args setArgs) error {
-	fmt.Println("set", args)
+	fmt.Printf("set %#v\n", args)
 	return nil
 }
 
@@ -359,7 +359,7 @@ type getConfigArgs struct {
 }
 
 func getConfig(ctx context.Context, args getConfigArgs) error {
-	fmt.Println("get config", args)
+	fmt.Printf("get config %#v\n", args)
 	return nil
 }
 
@@ -370,7 +370,7 @@ type setConfigArgs struct {
 }
 
 func setConfig(ctx context.Context, args setConfigArgs) error {
-	fmt.Println("set config", args)
+	fmt.Printf("set config %#v\n", args)
 	return nil
 }
 ```
@@ -380,13 +380,16 @@ you can run as:
 
 ```text
 $ go run ./examples/nestedsubcmds/... --username foo --password bar get xxx
-get {{foo bar} xxx}
+get main.getArgs{RootArgs:main.rootArgs{Username:"foo", Password:"bar"}, Key:"xxx"}
+
 $ go run ./examples/nestedsubcmds/... --username foo --password bar set xxx yyy
-set {{foo bar} xxx yyy}
+set main.setArgs{RootArgs:main.rootArgs{Username:"foo", Password:"bar"}, Key:"xxx", Value:"yyy"}
+
 $ go run ./examples/nestedsubcmds/... config --config-file=config.txt get xxx
-get config {{{ } config.txt} xxx}
+get config main.getConfigArgs{ConfigArgs:main.configArgs{RootArgs:main.rootArgs{Username:"", Password:""}, ConfigFile:"config.txt"}, Key:"xxx"}
+
 $ go run ./examples/nestedsubcmds/... config --config-file=config.txt set xxx yyy
-set config {{{ } config.txt} xxx yyy}
+set config main.setConfigArgs{ConfigArgs:main.configArgs{RootArgs:main.rootArgs{Username:"", Password:""}, ConfigFile:"config.txt"}, Key:"xxx", Value:"yyy"}
 ```
 
 You may notice that in the above example, `configArgs` is used as the parent
@@ -488,7 +491,7 @@ func (_ args) ExtendedDescription() string {
 
 func main() {
 	cli.Run(context.Background(), func(ctx context.Context, args args) error {
-		fmt.Println(args)
+		fmt.Printf("%#v\n", args)
 		return nil
 	})
 }
@@ -641,7 +644,7 @@ func (_ args) ExtendedUsage_RFC3339() string {
 
 func main() {
 	cli.Run(context.Background(), func(ctx context.Context, args args) error {
-		fmt.Println(args)
+		fmt.Printf("%#v\n", args)
 		return nil
 	})
 }
@@ -806,7 +809,7 @@ func (a args) Autocomplete_Bar() []string {
 
 func main() {
 	cli.Run(context.Background(), func(ctx context.Context, args args) error {
-		fmt.Println(args)
+		fmt.Printf("%#v\n", args)
 		return nil
 	})
 }
@@ -849,7 +852,7 @@ type args struct {
 
 func main() {
 	cli.Run(context.Background(), func(ctx context.Context, args args) error {
-		fmt.Println(args)
+		fmt.Printf("%#v\n", args)
 		return nil
 	})
 }
@@ -860,11 +863,13 @@ you can run as:
 
 ```text
 $ go run ./examples/repeatedflag/...
-{[]}
+main.args{Names:[]string(nil)}
+
 $ go run ./examples/repeatedflag/... --name foo
-{[foo]}
+main.args{Names:[]string{"foo"}}
+
 $ go run ./examples/repeatedflag/... --name foo --name bar --name baz
-{[foo bar baz]}
+main.args{Names:[]string{"foo", "bar", "baz"}}
 ```
 
 #### Optionally-taking-value options
@@ -991,7 +996,7 @@ func (p *urlParam) Set(s string) error {
 
 func main() {
 	cli.Run(context.Background(), func(ctx context.Context, args args) error {
-		fmt.Println(args)
+		fmt.Printf("%#v\n", args)
 		return nil
 	})
 }
@@ -1005,5 +1010,5 @@ $ go run ./examples/urlparam/... --foo :
 --foo: parse ":": missing protocol scheme
 exit status 1
 $ go run ./examples/urlparam/... --foo http://example.com/foo/bar
-{{{http   example.com /foo/bar  false  }}}
+main.args{Foo:main.urlParam{Value:url.URL{Scheme:"http", Opaque:"", User:(*url.Userinfo)(nil), Host:"example.com", Path:"/foo/bar", RawPath:"", ForceQuery:false, RawQuery:"", Fragment:""}}}
 ```

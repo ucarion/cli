@@ -43,7 +43,7 @@ func (_ args) ExtendedUsage_RFC3339() string {
 
 func main() {
 	cli.Run(context.Background(), func(ctx context.Context, args args) error {
-		fmt.Println(args)
+		fmt.Printf("%#v\n", args)
 		return nil
 	})
 }

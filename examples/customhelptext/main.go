@@ -24,7 +24,7 @@ func (_ args) ExtendedDescription() string {
 
 func main() {
 	cli.Run(context.Background(), func(ctx context.Context, args args) error {
-		fmt.Println(args)
+		fmt.Printf("%#v\n", args)
 		return nil
 	})
 }
