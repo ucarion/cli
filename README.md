@@ -300,6 +300,7 @@ as:
 ```text
 $ go run ./examples/subcmds/... --username foo --password bar get xxx
 get main.getArgs{RootArgs:main.rootArgs{Username:"foo", Password:"bar"}, Key:"xxx"}
+
 $ go run ./examples/subcmds/... --username foo --password bar set xxx yyy
 set main.setArgs{RootArgs:main.rootArgs{Username:"foo", Password:"bar"}, Key:"xxx", Value:"yyy"}
 ```
