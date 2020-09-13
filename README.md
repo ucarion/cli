@@ -1,10 +1,13 @@
+<p align="center">
+  <img height="450" src="./demo.gif">
+</p>
+
 # cli
 
 [![PkgGoDev](https://pkg.go.dev/badge/mod/github.com/ucarion/cli)](https://pkg.go.dev/github.com/ucarion/cli?tab=doc)
 
 `github.com/ucarion/cli` is a Golang package for writing delightful, Unix-style
-command-line tools in a type-safe way. With `github.com/ucarion/cli`, you can
-define:
+command-line tools in a type-safe way. With `cli`, you can define:
 
 * Commands and sub-commands (`git commit`, `git remote`, `git remote set-url`)
 * Short-style flags (`-f`, `-o json`, `-ojson`, `-abc`)
@@ -265,9 +268,18 @@ type rootArgs struct {
 	Password string `cli:"--password"`
 }
 
+func main() {
+	cli.Run(context.Background(), get, set)
+}
+
 type getArgs struct {
 	RootArgs rootArgs `cli:"get,subcmd"`
 	Key      string   `cli:"key"`
+}
+
+func get(ctx context.Context, args getArgs) error {
+	fmt.Println("get", args)
+	return nil
 }
 
 type setArgs struct {
@@ -276,17 +288,8 @@ type setArgs struct {
 	Value    string   `cli:"value"`
 }
 
-func main() {
-	cli.Run(context.Background(), get, set)
-}
-
-func get(ctx context.Context, args getArgs) error {
-	fmt.Println(args)
-	return nil
-}
-
 func set(ctx context.Context, args setArgs) error {
-	fmt.Println(args)
+	fmt.Println("set", args)
 	return nil
 }
 ```
@@ -320,15 +323,29 @@ type rootArgs struct {
 	Password string `cli:"--password"`
 }
 
+func main() {
+	cli.Run(context.Background(), get, set, getConfig, setConfig)
+}
+
 type getArgs struct {
 	RootArgs rootArgs `cli:"get,subcmd"`
 	Key      string   `cli:"key"`
+}
+
+func get(ctx context.Context, args getArgs) error {
+	fmt.Println("get", args)
+	return nil
 }
 
 type setArgs struct {
 	RootArgs rootArgs `cli:"set,subcmd"`
 	Key      string   `cli:"key"`
 	Value    string   `cli:"value"`
+}
+
+func set(ctx context.Context, args setArgs) error {
+	fmt.Println("set", args)
+	return nil
 }
 
 type configArgs struct {
@@ -341,29 +358,15 @@ type getConfigArgs struct {
 	Key        string     `cli:"key"`
 }
 
+func getConfig(ctx context.Context, args getConfigArgs) error {
+	fmt.Println("get config", args)
+	return nil
+}
+
 type setConfigArgs struct {
 	ConfigArgs configArgs `cli:"set,subcmd"`
 	Key        string     `cli:"key"`
 	Value      string     `cli:"value"`
-}
-
-func main() {
-	cli.Run(context.Background(), get, set, getConfig, setConfig)
-}
-
-func get(ctx context.Context, args getArgs) error {
-	fmt.Println("get", args)
-	return nil
-}
-
-func set(ctx context.Context, args setArgs) error {
-	fmt.Println("set", args)
-	return nil
-}
-
-func getConfig(ctx context.Context, args getConfigArgs) error {
-	fmt.Println("get config", args)
-	return nil
 }
 
 func setConfig(ctx context.Context, args setConfigArgs) error {

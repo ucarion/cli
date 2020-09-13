@@ -12,15 +12,29 @@ type rootArgs struct {
 	Password string `cli:"--password"`
 }
 
+func main() {
+	cli.Run(context.Background(), get, set, getConfig, setConfig)
+}
+
 type getArgs struct {
 	RootArgs rootArgs `cli:"get,subcmd"`
 	Key      string   `cli:"key"`
+}
+
+func get(ctx context.Context, args getArgs) error {
+	fmt.Println("get", args)
+	return nil
 }
 
 type setArgs struct {
 	RootArgs rootArgs `cli:"set,subcmd"`
 	Key      string   `cli:"key"`
 	Value    string   `cli:"value"`
+}
+
+func set(ctx context.Context, args setArgs) error {
+	fmt.Println("set", args)
+	return nil
 }
 
 type configArgs struct {
@@ -33,29 +47,15 @@ type getConfigArgs struct {
 	Key        string     `cli:"key"`
 }
 
+func getConfig(ctx context.Context, args getConfigArgs) error {
+	fmt.Println("get config", args)
+	return nil
+}
+
 type setConfigArgs struct {
 	ConfigArgs configArgs `cli:"set,subcmd"`
 	Key        string     `cli:"key"`
 	Value      string     `cli:"value"`
-}
-
-func main() {
-	cli.Run(context.Background(), get, set, getConfig, setConfig)
-}
-
-func get(ctx context.Context, args getArgs) error {
-	fmt.Println("get", args)
-	return nil
-}
-
-func set(ctx context.Context, args setArgs) error {
-	fmt.Println("set", args)
-	return nil
-}
-
-func getConfig(ctx context.Context, args getConfigArgs) error {
-	fmt.Println("get config", args)
-	return nil
 }
 
 func setConfig(ctx context.Context, args setConfigArgs) error {

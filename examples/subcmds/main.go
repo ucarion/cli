@@ -12,24 +12,24 @@ type rootArgs struct {
 	Password string `cli:"--password"`
 }
 
+func main() {
+	cli.Run(context.Background(), get, set)
+}
+
 type getArgs struct {
 	RootArgs rootArgs `cli:"get,subcmd"`
 	Key      string   `cli:"key"`
+}
+
+func get(ctx context.Context, args getArgs) error {
+	fmt.Println("get", args)
+	return nil
 }
 
 type setArgs struct {
 	RootArgs rootArgs `cli:"set,subcmd"`
 	Key      string   `cli:"key"`
 	Value    string   `cli:"value"`
-}
-
-func main() {
-	cli.Run(context.Background(), get, set)
-}
-
-func get(ctx context.Context, args getArgs) error {
-	fmt.Println("get", args)
-	return nil
 }
 
 func set(ctx context.Context, args setArgs) error {
