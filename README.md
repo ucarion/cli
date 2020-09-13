@@ -1,6 +1,6 @@
 # cli
 
-[![PkgGoDev](https://pkg.go.dev/badge/mod/github.com/ucarion/cli)](https://pkg.go.dev/mod/github.com/ucarion/cli)
+[![PkgGoDev](https://pkg.go.dev/badge/mod/github.com/ucarion/cli)](https://pkg.go.dev/github.com/ucarion/cli?tab=doc)
 
 `github.com/ucarion/cli` is a Golang package for writing delightful, Unix-style
 command-line tools in a type-safe way. With `github.com/ucarion/cli`, you can
