@@ -1,3 +1,4 @@
+// Package param contains the Param interface.
 package param
 
 import (
@@ -6,21 +7,38 @@ import (
 	"strconv"
 )
 
+// Param is the interface that all custom config struct field types must
+// satisfy.
+//
+// See Run for more details on how Param is used.
+//
+// As a high-level recommendation, note that you usually want to implement Param
+// by taking a pointer receiver; Set should typically mutate the inner value of
+// your Param implementation.
 type Param interface {
 	Set(string) error
 }
 
+// MayTakeValue returns true if the Param was constructed with something other
+// than a *bool.
 func MayTakeValue(p Param) bool {
 	_, ok := p.(boolParam)
 	return !ok
 }
 
+// MustTakeValue returns true if the Param was constructed with something other
+// than a *bool or a pointer to a pointer type.
 func MustTakeValue(p Param) bool {
 	_, ok1 := p.(boolParam)
 	_, ok2 := p.(ptrParam)
 	return !ok1 && !ok2
 }
 
+// New constructs a new Param from a pointer or Param implementation.
+//
+// If v implements Param, then New returns back v. Otherwise, New will return
+// back a Param implementation if the type is supported by the rules described
+// in Run. If the type is not supported, New returns an error.
 func New(v interface{}) (Param, error) {
 	// If the input is already a Param, just return it immediately.
 	if v, ok := v.(Param); ok {
