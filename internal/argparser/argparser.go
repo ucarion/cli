@@ -5,12 +5,10 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/ucarion/cli/internal/didyoumean"
-
 	"github.com/ucarion/cli/internal/cmdtree"
-	"github.com/ucarion/cli/param"
-
 	"github.com/ucarion/cli/internal/command"
+	"github.com/ucarion/cli/internal/didyoumean"
+	"github.com/ucarion/cli/internal/param"
 )
 
 type Parser struct {
@@ -244,7 +242,7 @@ func getShortFlag(tree cmdtree.CommandTree, s string) (command.Flag, error) {
 func setConfigField(config reflect.Value, index []int, val string) error {
 	// cmdtree.New will have handled making sure all fields are param-friendly.
 	p, _ := param.New(config.FieldByIndex(index).Addr().Interface())
-	return p.Set(val)
+	return p.UnmarshalText([]byte(val))
 }
 
 func mayTakeValue(config reflect.Value, flag command.Flag) bool {

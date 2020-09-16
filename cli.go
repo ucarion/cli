@@ -251,21 +251,18 @@ const (
 // using the appropriate method from the strconv package in the standard
 // library.
 //
-// Run also works with any type that implements the Param interface in the
-// github.com/ucarion/cli/param package:
+// Run also works with any type that implements TextUnmarshaler from the
+// encoding standard library package.
 //
-//  type Param interface {
-//      Set(string) error
-//  }
-//
-// Run will call Set on the zero value of your Param implementation, where the
-// string is the value to parse. If Set returns an error, then the string is
-// considered a bad argument.
+// Run will call TextUnmarshal on the zero value of your TextUnmarshal
+// implementation, where the text is the value to parse. If TextUnmarshal
+// returns an error, then the text is considered a bad argument.
 //
 // Furthermore, all of the types above are supported in slices or pointers. In
-// other words, if T is one of the types described previously (it is a Param or
-// is in the list of primitive types above), then []T and *T are supported as
-// well. This rule does not apply recursively; [][]T is not supported.
+// other words, if T is one of the types described previously (it is a
+// TextUnmarshaler or is in the list of primitive types above), then []T and *T
+// are supported as well. This rule does not apply recursively; [][]T is not
+// supported.
 //
 // Wrapping a type with a slice (that is, doing "[]T") indicates that the
 // argument can be passed multiple times. For trailing arguments, the type must

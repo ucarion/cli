@@ -299,7 +299,7 @@ func TestFromType_GamutOfTypes(t *testing.T) {
 
 type customValue struct{}
 
-func (c customValue) Set(_ string) error {
+func (c customValue) UnmarshalText(_ []byte) error {
 	return nil
 }
 
