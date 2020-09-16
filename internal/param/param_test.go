@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/ucarion/cli/param"
+	"github.com/ucarion/cli/internal/param"
 )
 
 func TestMayMustTakeValue(t *testing.T) {
@@ -57,7 +57,7 @@ func TestNewBool(t *testing.T) {
 	var v bool
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		p.Set("")
+		p.UnmarshalText([]byte(""))
 		assert.Equal(t, true, v)
 	}
 }
@@ -66,10 +66,10 @@ func TestNewInt(t *testing.T) {
 	var v int
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		p.Set("-10")
+		p.UnmarshalText([]byte("-10"))
 		assert.Equal(t, int(-10), v)
 
-		p.Set("0xf")
+		p.UnmarshalText([]byte("0xf"))
 		assert.Equal(t, int(15), v)
 	}
 }
@@ -78,10 +78,10 @@ func TestNewUint(t *testing.T) {
 	var v uint
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		p.Set("10")
+		p.UnmarshalText([]byte("10"))
 		assert.Equal(t, uint(10), v)
 
-		p.Set("0xf")
+		p.UnmarshalText([]byte("0xf"))
 		assert.Equal(t, uint(15), v)
 	}
 }
@@ -90,10 +90,10 @@ func TestNewInt8(t *testing.T) {
 	var v int8
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		p.Set("-10")
+		p.UnmarshalText([]byte("-10"))
 		assert.Equal(t, int8(-10), v)
 
-		p.Set("0xf")
+		p.UnmarshalText([]byte("0xf"))
 		assert.Equal(t, int8(15), v)
 	}
 }
@@ -102,10 +102,10 @@ func TestNewUint8(t *testing.T) {
 	var v uint8
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		p.Set("10")
+		p.UnmarshalText([]byte("10"))
 		assert.Equal(t, uint8(10), v)
 
-		p.Set("0xf")
+		p.UnmarshalText([]byte("0xf"))
 		assert.Equal(t, uint8(15), v)
 	}
 }
@@ -114,10 +114,10 @@ func TestNewInt16(t *testing.T) {
 	var v int16
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		p.Set("-10")
+		p.UnmarshalText([]byte("-10"))
 		assert.Equal(t, int16(-10), v)
 
-		p.Set("0xf")
+		p.UnmarshalText([]byte("0xf"))
 		assert.Equal(t, int16(15), v)
 	}
 }
@@ -126,10 +126,10 @@ func TestNewUint16(t *testing.T) {
 	var v uint16
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		p.Set("10")
+		p.UnmarshalText([]byte("10"))
 		assert.Equal(t, uint16(10), v)
 
-		p.Set("0xf")
+		p.UnmarshalText([]byte("0xf"))
 		assert.Equal(t, uint16(15), v)
 	}
 }
@@ -138,10 +138,10 @@ func TestNewInt32(t *testing.T) {
 	var v int32
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		p.Set("-10")
+		p.UnmarshalText([]byte("-10"))
 		assert.Equal(t, int32(-10), v)
 
-		p.Set("0xf")
+		p.UnmarshalText([]byte("0xf"))
 		assert.Equal(t, int32(15), v)
 	}
 }
@@ -150,10 +150,10 @@ func TestNewUint32(t *testing.T) {
 	var v uint32
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		p.Set("10")
+		p.UnmarshalText([]byte("10"))
 		assert.Equal(t, uint32(10), v)
 
-		p.Set("0xf")
+		p.UnmarshalText([]byte("0xf"))
 		assert.Equal(t, uint32(15), v)
 	}
 }
@@ -162,10 +162,10 @@ func TestNewInt64(t *testing.T) {
 	var v int64
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		p.Set("-10")
+		p.UnmarshalText([]byte("-10"))
 		assert.Equal(t, int64(-10), v)
 
-		p.Set("0xf")
+		p.UnmarshalText([]byte("0xf"))
 		assert.Equal(t, int64(15), v)
 	}
 }
@@ -174,10 +174,10 @@ func TestNewUint64(t *testing.T) {
 	var v uint64
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		p.Set("10")
+		p.UnmarshalText([]byte("10"))
 		assert.Equal(t, uint64(10), v)
 
-		p.Set("0xf")
+		p.UnmarshalText([]byte("0xf"))
 		assert.Equal(t, uint64(15), v)
 	}
 }
@@ -186,7 +186,7 @@ func TestNewFloat32(t *testing.T) {
 	var v float32
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		p.Set("-2.5")
+		p.UnmarshalText([]byte("-2.5"))
 		assert.Equal(t, float32(-2.5), v)
 	}
 }
@@ -195,7 +195,7 @@ func TestNewFloat64(t *testing.T) {
 	var v float64
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		p.Set("-2.5")
+		p.UnmarshalText([]byte("-2.5"))
 		assert.Equal(t, float64(-2.5), v)
 	}
 }
@@ -204,7 +204,7 @@ func TestNewString(t *testing.T) {
 	var v string
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		p.Set("foo")
+		p.UnmarshalText([]byte("foo"))
 		assert.Equal(t, "foo", v)
 	}
 }
@@ -218,7 +218,7 @@ func TestNewCustomParam(t *testing.T) {
 
 type customParam struct{}
 
-func (p customParam) Set(_ string) error { return nil }
+func (p customParam) UnmarshalText(_ []byte) error { return nil }
 
 func TestNewBoolSlice(t *testing.T) {
 	// A slice of bools is quite useless, yes. But is should work nevertheless.
@@ -228,8 +228,8 @@ func TestNewBoolSlice(t *testing.T) {
 	var v []bool
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		p.Set("")
-		p.Set("")
+		p.UnmarshalText([]byte(""))
+		p.UnmarshalText([]byte(""))
 		assert.Equal(t, []bool{true, true}, v)
 	}
 }
@@ -238,8 +238,8 @@ func TestNewStringSlice(t *testing.T) {
 	var v []string
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		p.Set("foo")
-		p.Set("bar")
+		p.UnmarshalText([]byte("foo"))
+		p.UnmarshalText([]byte("bar"))
 		assert.Equal(t, []string{"foo", "bar"}, v)
 	}
 }
@@ -248,8 +248,8 @@ func TestNewStringSliceWithExistingValues(t *testing.T) {
 	v := []string{"x", "y", "z"}
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		p.Set("foo")
-		p.Set("bar")
+		p.UnmarshalText([]byte("foo"))
+		p.UnmarshalText([]byte("bar"))
 		assert.Equal(t, []string{"x", "y", "z", "foo", "bar"}, v)
 	}
 }
@@ -258,8 +258,8 @@ func TestNewCustomParamSlice(t *testing.T) {
 	var v []customParam
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		p.Set("foo")
-		p.Set("bar")
+		p.UnmarshalText([]byte("foo"))
+		p.UnmarshalText([]byte("bar"))
 		assert.Equal(t, []customParam{{}, {}}, v)
 	}
 }
@@ -268,7 +268,7 @@ func TestNewStringPointer(t *testing.T) {
 	var v *string
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		p.Set("foo")
+		p.UnmarshalText([]byte("foo"))
 
 		foo := "foo"
 		assert.Equal(t, &foo, v)
@@ -279,7 +279,7 @@ func TestNewCustomParamPointer(t *testing.T) {
 	var v *customParam
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		p.Set("foo")
+		p.UnmarshalText([]byte("foo"))
 		assert.Equal(t, &customParam{}, v)
 	}
 }
@@ -288,7 +288,7 @@ func TestSetBadValue(t *testing.T) {
 	var v int8
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		err := p.Set("foo").Error()
+		err := p.UnmarshalText([]byte("foo")).Error()
 		assert.Equal(t, "strconv.ParseInt: parsing \"foo\": invalid syntax", err)
 	}
 }
@@ -297,7 +297,7 @@ func TestSetBadValueSlice(t *testing.T) {
 	var v []int8
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		err := p.Set("foo").Error()
+		err := p.UnmarshalText([]byte("foo")).Error()
 		assert.Equal(t, "strconv.ParseInt: parsing \"foo\": invalid syntax", err)
 	}
 }
@@ -306,7 +306,7 @@ func TestSetBadValuePtr(t *testing.T) {
 	var v *int8
 	p, err := param.New(&v)
 	if assert.NoError(t, err) {
-		err := p.Set("foo").Error()
+		err := p.UnmarshalText([]byte("foo")).Error()
 		assert.Equal(t, "strconv.ParseInt: parsing \"foo\": invalid syntax", err)
 	}
 }

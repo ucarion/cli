@@ -952,19 +952,24 @@ arguments, so `cli` reports an error to the user for the unexpected argument.
 
 #### Custom parameter types
 
-Out of the box, `cli` supports all of Go's number types (including floats, ints,
-and units, but not complex numbers), as well as strings, for any option or
-argument. If you'd like to parse options into a different type, you can:
+Out of the box, `cli` supports all of Go's number types (including floats,
+signed and unsigned ints, but not complex numbers), as well as bools and
+strings, for any option or argument. If you'd like to parse options into a
+different type, you can:
 
 1. Just do that parsing yourself, from within the function you pass to
    `cli.Run`, or
-2. You define your own data type satisfying the `Param` interface in
-   `github.com/ucarion/cli/param`. To satisfy that interface, you just need to
-   support a `Set(string) error` method, where the `string` will be the user's
-   input.
+2. Make sure the type implements the standard libary's
+   `encoding.TextUnmarshaler` interface, which looks like this:
 
-For example, here's how you can define a custom type of param that automatically
-parses a URL:
+   ```go
+   type TextUnmarshaler interface {
+   	UnmarshalText(text []byte) error
+   }
+   ```
+
+For example, the standard library's `net.IP` type implements `TextUnmarshaler`,
+so you can do this:
 
 ```go
 package main
@@ -972,26 +977,89 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/url"
+	"net"
 
 	"github.com/ucarion/cli"
 )
 
 type args struct {
-	Foo urlParam `cli:"--foo"`
+	Foo net.IP `cli:"--foo"`
 }
 
-type urlParam struct {
-	Value url.URL
+func main() {
+	cli.Run(context.Background(), func(ctx context.Context, args args) error {
+		fmt.Printf("%#v\n", args)
+		return nil
+	})
+}
+```
+
+This is [`examples/ipparam` in this repo](./examples/ipparam), which you can run
+as:
+
+```text
+$ go run ./examples/ipparam/... --foo asdf
+--foo: invalid IP address: asdf
+exit status 1
+
+go run ./examples/ipparam/... --foo 127.0.0.1
+main.args{Foo:net.IP{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xff, 0xff, 0x7f, 0x0, 0x0, 0x1}}
+```
+
+Alternatively, you can implement `TextUnmarshaler` on your own. For instance,
+here's a basic `TextUnmarshaler` implementation for a type that supports parsing
+numbers with suffixes like "B", "KB", "GB", "TB":
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"strconv"
+	"strings"
+
+	"github.com/ucarion/cli"
+)
+
+type args struct {
+	Foo bytes `cli:"--foo"`
 }
 
-func (p *urlParam) Set(s string) error {
-	u, err := url.Parse(s)
+type bytes int
+
+func (b *bytes) UnmarshalText(text []byte) error {
+	s := string(text)
+
+	var base string
+	var factor int
+
+	switch {
+	case strings.HasSuffix(s, "KB"):
+		base = s[:len(s)-2]
+		factor = 1024
+	case strings.HasSuffix(s, "MB"):
+		base = s[:len(s)-2]
+		factor = 1024 * 1024
+	case strings.HasSuffix(s, "GB"):
+		base = s[:len(s)-2]
+		factor = 1024 * 1024 * 1024
+	case strings.HasSuffix(s, "TB"):
+		base = s[:len(s)-2]
+		factor = 1024 * 1024 * 1024 * 1024
+	case strings.HasSuffix(s, "B"):
+		base = s[:len(s)-1]
+		factor = 1
+	default:
+		return fmt.Errorf("missing units suffix (must be one of B, KB, MB, GB, TB): %s", s)
+	}
+
+	n, err := strconv.ParseInt(base, 0, 0)
 	if err != nil {
 		return err
 	}
 
-	p.Value = *u
+	*b = bytes(int(n) * factor)
 	return nil
 }
 
@@ -1003,13 +1071,35 @@ func main() {
 }
 ```
 
-This is [`examples/urlparam` in this repo](./examples/urlparam), which you can
-run as:
+This is [`examples/customtype` in this repo](./examples/customtype), which you
+can run as:
 
 ```text
-$ go run ./examples/urlparam/... --foo :
---foo: parse ":": missing protocol scheme
+$ go run ./examples/customtype/... --foo asdf
+--foo: missing units suffix (must be one of B, KB, MB, GB, TB): asdf
 exit status 1
-$ go run ./examples/urlparam/... --foo http://example.com/foo/bar
-main.args{Foo:main.urlParam{Value:url.URL{Scheme:"http", Opaque:"", User:(*url.Userinfo)(nil), Host:"example.com", Path:"/foo/bar", RawPath:"", ForceQuery:false, RawQuery:"", Fragment:""}}}
+
+$ go run ./examples/customtype/... --foo 2B
+main.args{Foo:2}
+
+$ go run ./examples/customtype/... --foo 2KB
+main.args{Foo:2048}
+
+$ go run ./examples/customtype/... --foo 2GB
+main.args{Foo:2147483648}
+
+$ go run ./examples/customtype/... --foo 2TB
+main.args{Foo:2199023255552}
 ```
+
+With such a design, you could use this custom `bytes` type for any CLI parameter
+that you want formatted with B/KB/GB/TB suffixes. You could even publish a
+package with human-friendly types that implement `TextUnmarshaler`, like (for
+example)
+[`github.com/segmentio/cli/human`](https://pkg.go.dev/github.com/segmentio/cli/human),
+and then re-use those types across multiple projects.
+
+Ultimately, `cli` relies on `TextUnmarshaler` in order to be broadly compatible
+with the Golang ecosystem and standard library, and does not bundle
+implementations of `TextUnmarshaler` so as to avoid picking winners and losers
+in the space of "human-friendly" string-parsing libraries.

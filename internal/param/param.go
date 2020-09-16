@@ -1,47 +1,26 @@
-// Package param contains the Param interface.
 package param
 
 import (
+	"encoding"
 	"fmt"
 	"reflect"
 	"strconv"
 )
 
-// Param is the interface that all custom config struct field types must
-// satisfy.
-//
-// See Run for more details on how Param is used.
-//
-// As a high-level recommendation, note that you usually want to implement Param
-// by taking a pointer receiver; Set should typically mutate the inner value of
-// your Param implementation.
-type Param interface {
-	Set(string) error
-}
-
-// MayTakeValue returns true if the Param was constructed with something other
-// than a *bool.
-func MayTakeValue(p Param) bool {
+func MayTakeValue(p encoding.TextUnmarshaler) bool {
 	_, ok := p.(boolParam)
 	return !ok
 }
 
-// MustTakeValue returns true if the Param was constructed with something other
-// than a *bool or a pointer to a pointer type.
-func MustTakeValue(p Param) bool {
+func MustTakeValue(p encoding.TextUnmarshaler) bool {
 	_, ok1 := p.(boolParam)
 	_, ok2 := p.(ptrParam)
 	return !ok1 && !ok2
 }
 
-// New constructs a new Param from a pointer or Param implementation.
-//
-// If v implements Param, then New returns back v. Otherwise, New will return
-// back a Param implementation if the type is supported by the rules described
-// in Run. If the type is not supported, New returns an error.
-func New(v interface{}) (Param, error) {
+func New(v interface{}) (encoding.TextUnmarshaler, error) {
 	// If the input is already a Param, just return it immediately.
-	if v, ok := v.(Param); ok {
+	if v, ok := v.(encoding.TextUnmarshaler); ok {
 		return v, nil
 	}
 
@@ -79,11 +58,11 @@ func New(v interface{}) (Param, error) {
 	}
 }
 
-func newNoSliceOrPointer(v interface{}) (Param, error) {
+func newNoSliceOrPointer(v interface{}) (encoding.TextUnmarshaler, error) {
 	// If the input is already a Param, just return it immediately. We support
 	// this both here and in New because it's valid to have a slice or pointer
 	// to a custom type.
-	if v, ok := v.(Param); ok {
+	if v, ok := v.(encoding.TextUnmarshaler); ok {
 		return v, nil
 	}
 
@@ -126,7 +105,7 @@ type sliceParam struct {
 	v reflect.Value
 }
 
-func (p sliceParam) Set(s string) error {
+func (p sliceParam) UnmarshalText(s []byte) error {
 	// z := new(T)
 	z := reflect.New(p.t)
 
@@ -134,7 +113,7 @@ func (p sliceParam) Set(s string) error {
 	elem, _ := New(z.Interface())
 
 	// Update z's value via elem's Set
-	if err := elem.Set(s); err != nil {
+	if err := elem.UnmarshalText(s); err != nil {
 		return err
 	}
 
@@ -148,7 +127,7 @@ type ptrParam struct {
 	v reflect.Value
 }
 
-func (p ptrParam) Set(s string) error {
+func (p ptrParam) UnmarshalText(s []byte) error {
 	// z := new(T)
 	z := reflect.New(p.t)
 
@@ -156,7 +135,7 @@ func (p ptrParam) Set(s string) error {
 	elem, _ := New(z.Interface())
 
 	// Update z's value via elem's Set
-	if err := elem.Set(s); err != nil {
+	if err := elem.UnmarshalText(s); err != nil {
 		return err
 	}
 
@@ -169,7 +148,7 @@ type boolParam struct {
 	v *bool
 }
 
-func (p boolParam) Set(_ string) error {
+func (p boolParam) UnmarshalText(_ []byte) error {
 	*p.v = true
 	return nil
 }
@@ -178,8 +157,8 @@ type intParam struct {
 	v *int
 }
 
-func (p intParam) Set(s string) error {
-	v, err := strconv.ParseInt(s, 0, 0)
+func (p intParam) UnmarshalText(s []byte) error {
+	v, err := strconv.ParseInt(string(s), 0, 0)
 	*p.v = int(v)
 	return err
 }
@@ -188,8 +167,8 @@ type uintParam struct {
 	v *uint
 }
 
-func (p uintParam) Set(s string) error {
-	v, err := strconv.ParseUint(s, 0, 0)
+func (p uintParam) UnmarshalText(s []byte) error {
+	v, err := strconv.ParseUint(string(s), 0, 0)
 	*p.v = uint(v)
 	return err
 }
@@ -198,8 +177,8 @@ type int8Param struct {
 	v *int8
 }
 
-func (p int8Param) Set(s string) error {
-	v, err := strconv.ParseInt(s, 0, 8)
+func (p int8Param) UnmarshalText(s []byte) error {
+	v, err := strconv.ParseInt(string(s), 0, 8)
 	*p.v = int8(v)
 	return err
 }
@@ -208,8 +187,8 @@ type uint8Param struct {
 	v *uint8
 }
 
-func (p uint8Param) Set(s string) error {
-	v, err := strconv.ParseUint(s, 0, 8)
+func (p uint8Param) UnmarshalText(s []byte) error {
+	v, err := strconv.ParseUint(string(s), 0, 8)
 	*p.v = uint8(v)
 	return err
 }
@@ -218,8 +197,8 @@ type int16Param struct {
 	v *int16
 }
 
-func (p int16Param) Set(s string) error {
-	v, err := strconv.ParseInt(s, 0, 16)
+func (p int16Param) UnmarshalText(s []byte) error {
+	v, err := strconv.ParseInt(string(s), 0, 16)
 	*p.v = int16(v)
 	return err
 }
@@ -228,8 +207,8 @@ type uint16Param struct {
 	v *uint16
 }
 
-func (p uint16Param) Set(s string) error {
-	v, err := strconv.ParseUint(s, 0, 16)
+func (p uint16Param) UnmarshalText(s []byte) error {
+	v, err := strconv.ParseUint(string(s), 0, 16)
 	*p.v = uint16(v)
 	return err
 }
@@ -238,8 +217,8 @@ type int32Param struct {
 	v *int32
 }
 
-func (p int32Param) Set(s string) error {
-	v, err := strconv.ParseInt(s, 0, 32)
+func (p int32Param) UnmarshalText(s []byte) error {
+	v, err := strconv.ParseInt(string(s), 0, 32)
 	*p.v = int32(v)
 	return err
 }
@@ -248,8 +227,8 @@ type uint32Param struct {
 	v *uint32
 }
 
-func (p uint32Param) Set(s string) error {
-	v, err := strconv.ParseUint(s, 0, 32)
+func (p uint32Param) UnmarshalText(s []byte) error {
+	v, err := strconv.ParseUint(string(s), 0, 32)
 	*p.v = uint32(v)
 	return err
 }
@@ -258,8 +237,8 @@ type int64Param struct {
 	v *int64
 }
 
-func (p int64Param) Set(s string) error {
-	v, err := strconv.ParseInt(s, 0, 64)
+func (p int64Param) UnmarshalText(s []byte) error {
+	v, err := strconv.ParseInt(string(s), 0, 64)
 	*p.v = int64(v)
 	return err
 }
@@ -268,8 +247,8 @@ type uint64Param struct {
 	v *uint64
 }
 
-func (p uint64Param) Set(s string) error {
-	v, err := strconv.ParseUint(s, 0, 64)
+func (p uint64Param) UnmarshalText(s []byte) error {
+	v, err := strconv.ParseUint(string(s), 0, 64)
 	*p.v = uint64(v)
 	return err
 }
@@ -278,8 +257,8 @@ type float32Param struct {
 	v *float32
 }
 
-func (p float32Param) Set(s string) error {
-	v, err := strconv.ParseFloat(s, 32)
+func (p float32Param) UnmarshalText(s []byte) error {
+	v, err := strconv.ParseFloat(string(s), 32)
 	*p.v = float32(v)
 	return err
 }
@@ -288,8 +267,8 @@ type float64Param struct {
 	v *float64
 }
 
-func (p float64Param) Set(s string) error {
-	v, err := strconv.ParseFloat(s, 64)
+func (p float64Param) UnmarshalText(s []byte) error {
+	v, err := strconv.ParseFloat(string(s), 64)
 	*p.v = float64(v)
 	return err
 }
@@ -298,7 +277,7 @@ type stringParam struct {
 	v *string
 }
 
-func (p stringParam) Set(s string) error {
-	*p.v = s
+func (p stringParam) UnmarshalText(s []byte) error {
+	*p.v = string(s)
 	return nil
 }

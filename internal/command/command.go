@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/ucarion/cli/internal/param"
 	"github.com/ucarion/cli/internal/tagparse"
-	"github.com/ucarion/cli/param"
 )
 
 type Command struct {
@@ -68,7 +68,6 @@ func FromFunc(fn interface{}) (Command, ParentInfo, error) {
 }
 
 var (
-	paramType       = reflect.TypeOf((*param.Param)(nil)).Elem()
 	ctxType         = reflect.TypeOf((*context.Context)(nil)).Elem()
 	errType         = reflect.TypeOf((*error)(nil)).Elem()
 	stringType      = reflect.TypeOf("")

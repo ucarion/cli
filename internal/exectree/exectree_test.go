@@ -720,13 +720,13 @@ type customValue struct {
 	Value string
 }
 
-func (c *customValue) Set(s string) error {
-	c.Value = s
+func (c *customValue) UnmarshalText(s []byte) error {
+	c.Value = string(s)
 	return nil
 }
 
 type errParam struct{}
 
-func (p errParam) Set(_ string) error {
+func (p errParam) UnmarshalText(_ []byte) error {
 	return errors.New("dummy errParam err")
 }

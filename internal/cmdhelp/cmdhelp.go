@@ -10,7 +10,7 @@ import (
 
 	"github.com/ucarion/cli/internal/cmdtree"
 	"github.com/ucarion/cli/internal/command"
-	"github.com/ucarion/cli/param"
+	"github.com/ucarion/cli/internal/param"
 )
 
 func Help(tree cmdtree.CommandTree, name []string) string {

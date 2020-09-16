@@ -3,27 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/url"
+	"net"
 
 	"github.com/ucarion/cli"
 )
 
 type args struct {
-	Foo urlParam `cli:"--foo"`
-}
-
-type urlParam struct {
-	Value url.URL
-}
-
-func (p *urlParam) Set(s string) error {
-	u, err := url.Parse(s)
-	if err != nil {
-		return err
-	}
-
-	p.Value = *u
-	return nil
+	Foo net.IP `cli:"--foo"`
 }
 
 func main() {
